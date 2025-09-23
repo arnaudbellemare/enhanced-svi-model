@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 import time
 from typing import Dict, List, Optional, Tuple
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 warnings.filterwarnings('ignore')
 
 class RealCryptoOptionsFetcher:
@@ -133,6 +135,19 @@ class RealCryptoOptionsFetcher:
                 'ETH': self.eth_price
             }
     
+    def _fetch_single_option(self, market: Dict, symbol: str) -> Optional[Dict]:
+        """Fetch a single option's data (for parallel processing)."""
+        try:
+            # Get ticker data
+            ticker = self.deribit.fetch_ticker(market['id'])
+            
+            # Parse option details
+            option_info = self._parse_deribit_option(market['id'], ticker, market)
+            return option_info
+            
+        except Exception as e:
+            return None
+    
     def fetch_deribit_options(self, symbol: str, limit: int = 100) -> List[Dict]:
         """Fetch real options data from Deribit."""
         try:
@@ -145,23 +160,26 @@ class RealCryptoOptionsFetcher:
             
             print(f"🔍 Found {len(option_markets)} {symbol} option markets on Deribit")
             
-            # Fetch ticker data for each option - get ALL available options
-            print(f"🔄 Fetching ALL {len(option_markets)} {symbol} options from Deribit...")
-            for i, market in enumerate(option_markets):
-                try:
-                    # Get ticker data
-                    ticker = self.deribit.fetch_ticker(market['id'])
-                    
-                    # Parse option details
-                    option_info = self._parse_deribit_option(market['id'], ticker, market)
+            # Use parallel processing with 12 workers for faster fetching
+            print(f"🚀 Fetching ALL {len(option_markets)} {symbol} options from Deribit using 12 workers...")
+            
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                # Submit all tasks
+                future_to_market = {
+                    executor.submit(self._fetch_single_option, market, symbol): market 
+                    for market in option_markets
+                }
+                
+                # Process completed tasks
+                completed = 0
+                for future in as_completed(future_to_market):
+                    option_info = future.result()
                     if option_info:
                         options_data.append(option_info)
-                        if len(options_data) % 50 == 0:  # Progress update every 50 options
-                            print(f"   📊 Fetched {len(options_data)} options so far...")
-                        
-                except Exception as e:
-                    # Skip instruments that can't be fetched
-                    continue
+                    
+                    completed += 1
+                    if completed % 100 == 0:  # Progress update every 100 options
+                        print(f"   📊 Processed {completed}/{len(option_markets)} options...")
             
             print(f"✅ Fetched {len(options_data)} {symbol} options from Deribit")
             return options_data
@@ -169,6 +187,19 @@ class RealCryptoOptionsFetcher:
         except Exception as e:
             print(f"❌ Error fetching Deribit options: {e}")
             return []
+    
+    def _fetch_single_thalex_option(self, market: Dict, symbol: str) -> Optional[Dict]:
+        """Fetch a single Thalex option's data (for parallel processing)."""
+        try:
+            # Get ticker data
+            ticker = self.thalex.fetch_ticker(market['id'])
+            
+            # Parse option details
+            option_info = self._parse_thalex_option(market['id'], ticker, market)
+            return option_info
+            
+        except Exception as e:
+            return None
     
     def _parse_deribit_option(self, instrument_id: str, ticker: Dict, market: Dict = None) -> Optional[Dict]:
         """Parse Deribit option instrument ID and ticker data."""
@@ -267,23 +298,26 @@ class RealCryptoOptionsFetcher:
             
             print(f"🔍 Found {len(option_markets)} {symbol} option markets on Thalex")
             
-            # Fetch ticker data for each option - get ALL available options
-            print(f"🔄 Fetching ALL {len(option_markets)} {symbol} options from Thalex...")
-            for i, market in enumerate(option_markets):
-                try:
-                    # Get ticker data
-                    ticker = self.thalex.fetch_ticker(market['id'])
-                    
-                    # Parse option details
-                    option_info = self._parse_thalex_option(market['id'], ticker, market)
+            # Use parallel processing with 12 workers for faster fetching
+            print(f"🚀 Fetching ALL {len(option_markets)} {symbol} options from Thalex using 12 workers...")
+            
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                # Submit all tasks
+                future_to_market = {
+                    executor.submit(self._fetch_single_thalex_option, market, symbol): market 
+                    for market in option_markets
+                }
+                
+                # Process completed tasks
+                completed = 0
+                for future in as_completed(future_to_market):
+                    option_info = future.result()
                     if option_info:
                         options_data.append(option_info)
-                        if len(options_data) % 50 == 0:  # Progress update every 50 options
-                            print(f"   📊 Fetched {len(options_data)} options so far...")
-                        
-                except Exception as e:
-                    # Skip instruments that can't be fetched
-                    continue
+                    
+                    completed += 1
+                    if completed % 100 == 0:  # Progress update every 100 options
+                        print(f"   📊 Processed {completed}/{len(option_markets)} options...")
             
             print(f"✅ Fetched {len(options_data)} {symbol} options from Thalex")
             return options_data
