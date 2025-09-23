@@ -33,11 +33,14 @@ class SVIEnhanced:
         Load market data from various sources.
         
         Args:
-            data_source: Path to CSV file or other data source
+            data_source: Path to CSV file, 'crypto_data', or other data source
         """
         try:
             if data_source.endswith('.csv'):
                 self.market_data = pd.read_csv(data_source)
+            elif data_source == 'crypto_data':
+                # Load real crypto options data
+                self._load_crypto_data()
             else:
                 # For demo purposes, generate synthetic data
                 self._generate_synthetic_data()
@@ -85,6 +88,42 @@ class SVIEnhanced:
         })
         
         print("Synthetic market data generated.")
+    
+    def _load_crypto_data(self):
+        """Load real crypto options data for BTC and ETH from Deribit and Thalex."""
+        try:
+            from real_crypto_options_fetcher import RealCryptoOptionsFetcher
+            
+            # Initialize real crypto options fetcher
+            fetcher = RealCryptoOptionsFetcher()
+            
+            # Fetch real crypto options data from exchanges
+            crypto_data = fetcher.fetch_btc_eth_options()
+            
+            # Store the data
+            self.market_data = crypto_data
+            
+            print(f"✅ Real crypto options data loaded:")
+            print(f"   Total options: {len(crypto_data)}")
+            print(f"   BTC options: {len(crypto_data[crypto_data['symbol'] == 'BTC'])}")
+            print(f"   ETH options: {len(crypto_data[crypto_data['symbol'] == 'ETH'])}")
+            
+            if len(crypto_data) > 0:
+                btc_data = crypto_data[crypto_data['symbol'] == 'BTC']
+                eth_data = crypto_data[crypto_data['symbol'] == 'ETH']
+                
+                if len(btc_data) > 0:
+                    print(f"   Current BTC price: ${btc_data['spot_price'].iloc[0]:,.2f}")
+                    print(f"   BTC strike range: ${btc_data['strike'].min():,.0f} - ${btc_data['strike'].max():,.0f}")
+                
+                if len(eth_data) > 0:
+                    print(f"   Current ETH price: ${eth_data['spot_price'].iloc[0]:,.2f}")
+                    print(f"   ETH strike range: ${eth_data['strike'].min():,.0f} - ${eth_data['strike'].max():,.0f}")
+            
+        except Exception as e:
+            print(f"❌ Error loading real crypto data: {e}")
+            print("Falling back to synthetic data...")
+            self._generate_synthetic_data()
     
     def _black_scholes_price(self, S, K, T, r, sigma, option_type):
         """Calculate Black-Scholes option price."""
