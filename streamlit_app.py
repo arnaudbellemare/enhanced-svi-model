@@ -68,11 +68,15 @@ def main():
     st.markdown('<div class="main-header">🎯 Enhanced SVI Model</div>', unsafe_allow_html=True)
     st.markdown("**Stochastic Volatility Inspired Model with Implied Probability Analysis**")
     
-    # Show current crypto selection
-    if st.session_state.selected_crypto == 'Both':
-        st.info(f"🪙 **Currently analyzing**: All cryptocurrencies (BTC + ETH)")
-    else:
-        st.info(f"🪙 **Currently analyzing**: {st.session_state.selected_crypto} only")
+    # Initialize session state FIRST
+    if 'svi_model' not in st.session_state:
+        st.session_state.svi_model = None
+    if 'probabilities' not in st.session_state:
+        st.session_state.probabilities = None
+    if 'risk_metrics' not in st.session_state:
+        st.session_state.risk_metrics = None
+    if 'selected_crypto' not in st.session_state:
+        st.session_state.selected_crypto = 'BTC'  # Default to BTC
     
     # Sidebar for navigation
     st.sidebar.title("🎮 Navigation")
@@ -86,15 +90,11 @@ def main():
     )
     st.session_state.selected_crypto = selected_crypto
     
-    # Initialize session state
-    if 'svi_model' not in st.session_state:
-        st.session_state.svi_model = None
-    if 'probabilities' not in st.session_state:
-        st.session_state.probabilities = None
-    if 'risk_metrics' not in st.session_state:
-        st.session_state.risk_metrics = None
-    if 'selected_crypto' not in st.session_state:
-        st.session_state.selected_crypto = 'BTC'  # Default to BTC
+    # Show current crypto selection
+    if st.session_state.selected_crypto == 'Both':
+        st.info(f"🪙 **Currently analyzing**: All cryptocurrencies (BTC + ETH)")
+    else:
+        st.info(f"🪙 **Currently analyzing**: {st.session_state.selected_crypto} only")
     
     # Navigation menu
     page = st.sidebar.selectbox(
