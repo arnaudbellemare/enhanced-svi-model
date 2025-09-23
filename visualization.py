@@ -568,17 +568,23 @@ class SVIVisualizer:
         right_tail_mask = strikes >= tail_upper_strike
         
         if np.any(left_tail_mask):
-            ax.fill_between(strikes[left_tail_mask], density[left_tail_mask], 
+            left_strikes = strikes[left_tail_mask]
+            left_density = density[left_tail_mask]
+            ax.fill_between(left_strikes, left_density, 
                            alpha=0.7, color='red', label='16% Left Tail (Downside Risk)')
         
         if np.any(right_tail_mask):
-            ax.fill_between(strikes[right_tail_mask], density[right_tail_mask], 
+            right_strikes = strikes[right_tail_mask]
+            right_density = density[right_tail_mask]
+            ax.fill_between(right_strikes, right_density, 
                            alpha=0.7, color='red', label='16% Right Tail (Upside Risk)')
         
         # Color the 68% middle in green (normal distribution)
         middle_mask = (strikes > tail_lower_strike) & (strikes < tail_upper_strike)
         if np.any(middle_mask):
-            ax.fill_between(strikes[middle_mask], density[middle_mask], 
+            middle_strikes = strikes[middle_mask]
+            middle_density = density[middle_mask]
+            ax.fill_between(middle_strikes, middle_density, 
                            alpha=0.5, color='green', label='68% Middle (Normal Range)')
         
         # Add vertical line for current price
