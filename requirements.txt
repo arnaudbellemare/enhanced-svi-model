@@ -10,3 +10,4 @@ quantlib>=1.25
 numba>=0.56.0
 jupyter>=1.0.0
 ipywidgets>=7.6.0
+streamlit>=1.28.0
