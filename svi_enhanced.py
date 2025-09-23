@@ -33,64 +33,26 @@ class SVIEnhanced:
         Load market data from various sources.
         
         Args:
-            data_source: Path to CSV file, 'crypto_data', or other data source
+            data_source: Path to CSV file or 'crypto_data' for real crypto options
         """
         try:
             if data_source.endswith('.csv'):
                 self.market_data = pd.read_csv(data_source)
             elif data_source == 'crypto_data':
-                # Load real crypto options data
+                # Load real crypto options data from Deribit and Thalex
                 self._load_crypto_data()
             else:
-                # For demo purposes, generate synthetic data
-                self._generate_synthetic_data()
+                raise Exception(f"Unknown data source: {data_source}. Use 'crypto_data' for real crypto options or provide a CSV file path.")
                 
             print(f"Market data loaded successfully. Shape: {self.market_data.shape}")
             
         except Exception as e:
             print(f"Error loading market data: {e}")
-            self._generate_synthetic_data()
+            raise Exception("Failed to load market data. No synthetic data will be generated.")
     
-    def _generate_synthetic_data(self):
-        """Generate synthetic options data for demonstration."""
-        np.random.seed(42)
-        
-        # Generate synthetic data
-        n_options = 1000
-        spot_price = 100.0
-        
-        # Generate strikes around spot price
-        strikes = np.random.normal(spot_price, spot_price * 0.3, n_options)
-        strikes = np.clip(strikes, spot_price * 0.5, spot_price * 1.5)
-        
-        # Generate expiration dates
-        expirations = np.random.choice([7, 14, 30, 60, 90, 180, 365], n_options)
-        
-        # Generate option types
-        option_types = np.random.choice(['call', 'put'], n_options)
-        
-        # Generate synthetic prices using Black-Scholes
-        prices = []
-        for i in range(n_options):
-            vol = np.random.uniform(0.15, 0.4)
-            price = self._black_scholes_price(
-                spot_price, strikes[i], expirations[i]/365, 
-                self.risk_free_rate, vol, option_types[i]
-            )
-            prices.append(price)
-        
-        self.market_data = pd.DataFrame({
-            'strike': strikes,
-            'expiration': expirations,
-            'option_type': option_types,
-            'price': prices,
-            'spot_price': spot_price
-        })
-        
-        print("Synthetic market data generated.")
     
     def _load_crypto_data(self):
-        """Load real crypto options data for BTC and ETH from Deribit and Thalex."""
+        """Load REAL crypto options data for BTC and ETH from Deribit and Thalex ONLY."""
         try:
             from real_crypto_options_fetcher import RealCryptoOptionsFetcher
             
@@ -103,7 +65,7 @@ class SVIEnhanced:
             # Store the data
             self.market_data = crypto_data
             
-            print(f"✅ Real crypto options data loaded:")
+            print(f"✅ REAL crypto options data loaded:")
             print(f"   Total options: {len(crypto_data)}")
             print(f"   BTC options: {len(crypto_data[crypto_data['symbol'] == 'BTC'])}")
             print(f"   ETH options: {len(crypto_data[crypto_data['symbol'] == 'ETH'])}")
@@ -115,15 +77,16 @@ class SVIEnhanced:
                 if len(btc_data) > 0:
                     print(f"   Current BTC price: ${btc_data['spot_price'].iloc[0]:,.2f}")
                     print(f"   BTC strike range: ${btc_data['strike'].min():,.0f} - ${btc_data['strike'].max():,.0f}")
+                    print(f"   BTC exchanges: {btc_data['exchange'].value_counts().to_dict()}")
                 
                 if len(eth_data) > 0:
                     print(f"   Current ETH price: ${eth_data['spot_price'].iloc[0]:,.2f}")
                     print(f"   ETH strike range: ${eth_data['strike'].min():,.0f} - ${eth_data['strike'].max():,.0f}")
+                    print(f"   ETH exchanges: {eth_data['exchange'].value_counts().to_dict()}")
             
         except Exception as e:
             print(f"❌ Error loading real crypto data: {e}")
-            print("Falling back to synthetic data...")
-            self._generate_synthetic_data()
+            raise Exception("Failed to load real crypto options data. No synthetic data will be generated.")
     
     def _black_scholes_price(self, S, K, T, r, sigma, option_type):
         """Calculate Black-Scholes option price."""

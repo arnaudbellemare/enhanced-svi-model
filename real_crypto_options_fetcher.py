@@ -272,7 +272,7 @@ class RealCryptoOptionsFetcher:
             return None
     
     def fetch_all_crypto_options(self, symbol: str = 'BTC', limit: int = 200) -> pd.DataFrame:
-        """Fetch options data from all available exchanges."""
+        """Fetch REAL options data from exchanges ONLY."""
         try:
             # Initialize exchanges
             self.initialize_exchanges()
@@ -291,8 +291,7 @@ class RealCryptoOptionsFetcher:
             all_options.extend(thalex_options)
             
             if not all_options:
-                print(f"⚠️ No options data found for {symbol}, generating synthetic data...")
-                return self._generate_synthetic_crypto_options(symbol)
+                raise Exception(f"No real options data found for {symbol} on any exchange")
             
             # Convert to DataFrame
             df = pd.DataFrame(all_options)
@@ -301,6 +300,9 @@ class RealCryptoOptionsFetcher:
             df = df[df['price'] > 0]
             df = df[df['expiration'] > 0]
             df = df[df['strike'] > 0]
+            
+            if len(df) == 0:
+                raise Exception(f"No valid options data found for {symbol}")
             
             print(f"✅ Total {symbol} options: {len(df)}")
             print(f"   Deribit: {len(df[df['exchange'] == 'deribit'])}")
@@ -311,61 +313,9 @@ class RealCryptoOptionsFetcher:
             return df
             
         except Exception as e:
-            print(f"❌ Error fetching crypto options: {e}")
-            return self._generate_synthetic_crypto_options(symbol)
+            print(f"❌ Error fetching real crypto options: {e}")
+            raise Exception(f"Failed to fetch real options data for {symbol}. No synthetic data will be generated.")
     
-    def _generate_synthetic_crypto_options(self, symbol: str) -> pd.DataFrame:
-        """Generate synthetic crypto options data as fallback."""
-        print(f"🔄 Generating synthetic {symbol} options data...")
-        
-        current_price = self.btc_price if symbol == 'BTC' else self.eth_price
-        
-        # Generate realistic strike prices
-        if symbol == 'BTC':
-            strikes = np.arange(current_price * 0.7, current_price * 1.3, 1000)
-        else:  # ETH
-            strikes = np.arange(current_price * 0.7, current_price * 1.3, 100)
-        
-        expirations = [7, 14, 30, 60, 90, 180, 365]
-        
-        all_data = []
-        
-        for exp in expirations:
-            T = exp / 365.0
-            exp_strikes = np.random.choice(strikes, min(20, len(strikes)), replace=False)
-            
-            for strike in exp_strikes:
-                for option_type in ['call', 'put']:
-                    # Calculate realistic crypto volatility
-                    moneyness = strike / current_price
-                    if moneyness < 0.9:
-                        vol = 0.8 + 0.4 * (0.9 - moneyness)
-                    elif moneyness > 1.1:
-                        vol = 0.8 + 0.4 * (moneyness - 1.1)
-                    else:
-                        vol = 0.6
-                    
-                    vol += np.random.normal(0, 0.1)
-                    vol = max(0.3, min(2.0, vol))
-                    
-                    # Calculate Black-Scholes price
-                    price = self._black_scholes_price(current_price, strike, T, 0.05, vol, option_type)
-                    price = max(price, 0.01)
-                    
-                    all_data.append({
-                        'symbol': symbol,
-                        'strike': strike,
-                        'expiration': exp,
-                        'option_type': option_type,
-                        'price': price,
-                        'spot_price': current_price,
-                        'bid': price * 0.95,
-                        'ask': price * 1.05,
-                        'volume': np.random.uniform(0, 1000),
-                        'exchange': 'synthetic'
-                    })
-        
-        return pd.DataFrame(all_data)
     
     def _black_scholes_price(self, S: float, K: float, T: float, r: float, sigma: float, option_type: str) -> float:
         """Calculate Black-Scholes price."""
