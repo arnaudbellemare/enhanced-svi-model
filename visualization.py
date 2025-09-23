@@ -488,9 +488,15 @@ class SVIVisualizer:
         
         for exp in expirations:
             strikes = self.svi_model.implied_probabilities[exp]['probabilities']['strikes']
+            # Ensure strikes are numeric
+            strikes = [float(s) for s in strikes if s is not None and not np.isnan(s)]
             all_strikes.update(strikes)
         
         all_strikes = sorted(list(all_strikes))
+        
+        # Ensure we have valid data
+        if not all_strikes or not expirations:
+            raise ValueError("No valid strike prices or expirations found")
         
         # Create probability matrix
         prob_matrix = []
@@ -499,9 +505,30 @@ class SVIVisualizer:
             strikes = prob_info['strikes']
             call_probs = prob_info['call_probabilities']
             
-            # Interpolate probabilities for all strikes
-            interp_probs = np.interp(all_strikes, strikes, call_probs)
+            # Ensure data is numeric and valid
+            strikes = [float(s) for s in strikes if s is not None and not np.isnan(s)]
+            call_probs = [float(p) for p in call_probs if p is not None and not np.isnan(p)]
+            
+            # Ensure we have matching data
+            if len(strikes) != len(call_probs):
+                min_len = min(len(strikes), len(call_probs))
+                strikes = strikes[:min_len]
+                call_probs = call_probs[:min_len]
+            
+            if len(strikes) == 0:
+                # Fill with zeros if no valid data
+                interp_probs = np.zeros(len(all_strikes))
+            else:
+                # Interpolate probabilities for all strikes
+                interp_probs = np.interp(all_strikes, strikes, call_probs)
+            
             prob_matrix.append(interp_probs)
+        
+        prob_matrix = np.array(prob_matrix)
+        
+        # Ensure matrix is valid
+        if prob_matrix.size == 0:
+            raise ValueError("No valid probability data found")
         
         # Get current price for reference
         current_price = self.svi_model.market_data['spot_price'].iloc[0]
