@@ -198,7 +198,7 @@ class SVIVisualizer:
     
     def plot_probability_evolution_animation(self, save_path: Optional[str] = None):
         """
-        Create animated plot showing probability evolution over time.
+        Create animated plot showing probability evolution over time with relative volatility analysis.
         
         Args:
             save_path: Optional path to save the animation
@@ -206,10 +206,13 @@ class SVIVisualizer:
         if not self.svi_model.implied_probabilities:
             self.svi_model.calculate_implied_probabilities()
         
+        # Get current price for volatility analysis
+        current_price = self.svi_model.market_data['spot_price'].iloc[0]
+        
         expirations = sorted(self.svi_model.implied_probabilities.keys())
         
-        # Create figure
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        # Create figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 6))
         
         # Plot 1: Probability curves
         for i, exp in enumerate(expirations):
@@ -244,7 +247,132 @@ class SVIVisualizer:
         ax2.legend()
         ax2.grid(True, alpha=0.3)
         
+        # Plot 3: Implied Volatility Analysis (FIXED)
+        implied_vols = []
+        risk_metrics = []
+        
+        for i, exp in enumerate(expirations):
+            prob_info = self.svi_model.implied_probabilities[exp]['probabilities']
+            strikes = prob_info['strikes']
+            call_probs = prob_info['call_probabilities']
+            put_probs = prob_info['put_probabilities']
+            density = prob_info['risk_neutral_density']
+            
+            # Calculate implied volatility from probability curves
+            # Find ATM strike (closest to current price)
+            atm_strike = min(strikes, key=lambda x: abs(x - current_price))
+            atm_idx = list(strikes).index(atm_strike)
+            
+            # Calculate implied volatility using Black-Scholes approximation
+            # IV ≈ sqrt(2π/T) * (C - P) / S
+            # Where C = call price, P = put price, S = spot price, T = time to expiry
+            if atm_idx < len(call_probs) and atm_idx < len(put_probs):
+                call_prob = call_probs[atm_idx]
+                put_prob = put_probs[atm_idx]
+                
+                # Convert probabilities to approximate option prices
+                # Using probability as proxy for option value
+                call_price = call_prob * current_price * 0.01  # Rough approximation
+                put_price = put_prob * current_price * 0.01   # Rough approximation
+                
+                # Calculate implied volatility
+                time_to_expiry = exp / 365.0  # Convert days to years
+                if time_to_expiry > 0:
+                    # Simplified IV calculation
+                    price_diff = abs(call_price - put_price)
+                    if price_diff > 0:
+                        implied_vol = (price_diff / current_price) * np.sqrt(2 * np.pi / time_to_expiry) * 100
+                    else:
+                        implied_vol = 0
+                else:
+                    implied_vol = 0
+            else:
+                implied_vol = 0
+            
+            # Calculate risk metrics from risk-neutral density
+            if len(density) > 0 and len(strikes) > 0:
+                # Calculate standard deviation of the risk-neutral density
+                mean_strike = np.average(strikes, weights=density)
+                variance = np.average((strikes - mean_strike)**2, weights=density)
+                std_dev = np.sqrt(variance)
+                
+                # Relative volatility as percentage of current price
+                relative_vol = (std_dev / current_price) * 100
+                
+                implied_vols.append(implied_vol)
+                risk_metrics.append(relative_vol)
+            else:
+                implied_vols.append(0)
+                risk_metrics.append(0)
+        
+        # Calculate dynamic volatility threshold based on data
+        if risk_metrics and len(risk_metrics) > 0:
+            # Calculate threshold as 1 standard deviation above mean
+            mean_vol = np.mean(risk_metrics)
+            std_vol = np.std(risk_metrics)
+            volatility_threshold = mean_vol + std_vol
+            
+            # Ensure threshold is reasonable (between 5% and 50%)
+            volatility_threshold = max(5, min(50, volatility_threshold))
+        else:
+            volatility_threshold = 15  # Fallback if no data
+        
+        # Plot implied volatility analysis
+        ax3.plot(expirations, implied_vols, 'o-', color='blue', linewidth=3, markersize=8, label='Implied Volatility')
+        ax3.plot(expirations, risk_metrics, 's-', color='red', linewidth=3, markersize=8, label='Risk-Neutral Volatility')
+        ax3.axhline(y=volatility_threshold, color='green', linestyle='--', linewidth=2, alpha=0.7, 
+                   label=f'{volatility_threshold:.1f}% Threshold')
+        ax3.fill_between(expirations, 0, volatility_threshold, alpha=0.2, color='green', 
+                         label='Normal Volatility Zone')
+        ax3.fill_between(expirations, volatility_threshold, max(risk_metrics) if risk_metrics else volatility_threshold*2, 
+                         alpha=0.2, color='red', label='High Volatility Zone')
+        
+        ax3.set_xlabel('Days to Expiration')
+        ax3.set_ylabel('Volatility (%)')
+        ax3.set_title('Implied Volatility Analysis\nFrom Probability Curves & Risk-Neutral Density')
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+        
+        # Add comprehensive analysis text
+        avg_implied_vol = np.mean(implied_vols) if implied_vols else 0
+        max_implied_vol = np.max(implied_vols) if implied_vols else 0
+        avg_risk_vol = np.mean(risk_metrics) if risk_metrics else 0
+        max_risk_vol = np.max(risk_metrics) if risk_metrics else 0
+        
+        analysis_text = f"""
+📊 IMPLIED VOLATILITY ANALYSIS
+
+💰 Current Price: ${current_price:,.0f}
+📈 Average Implied Vol: {avg_implied_vol:.1f}%
+📊 Max Implied Vol: {max_implied_vol:.1f}%
+📉 Average Risk-Neutral Vol: {avg_risk_vol:.1f}%
+📊 Max Risk-Neutral Vol: {max_risk_vol:.1f}%
+🎯 Calculated Threshold: {volatility_threshold:.1f}% (Mean + 1σ)
+
+💡 KEY INSIGHTS:
+• Blue line: Implied volatility from probability curves
+• Red line: Risk-neutral density volatility
+• {volatility_threshold:.1f}% threshold calculated from data
+• Higher % = More volatile/uncertain market
+• Lower % = More stable/confident market
+
+🔍 INTERPRETATION:
+• Green zone (0-{volatility_threshold:.1f}%): Normal market volatility
+• Red zone (>{volatility_threshold:.1f}%): High volatility/uncertainty
+• Implied Vol: Market's expectation of future volatility
+• Risk-Neutral Vol: Actual probability distribution width
+• Threshold based on statistical analysis of data
+        """
+        
+        # Add text box with analysis - positioned to not overlap charts
+        fig.text(0.02, 0.02, analysis_text, fontsize=8, 
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.9),
+                verticalalignment='bottom', horizontalalignment='left',
+                transform=fig.transFigure)
+        
+        # Adjust layout to prevent overlap - more space for text
         plt.tight_layout()
+        plt.subplots_adjust(top=0.9, bottom=0.25, left=0.1, right=0.95)
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
