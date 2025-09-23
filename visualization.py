@@ -488,9 +488,11 @@ class SVIVisualizer:
         
         for exp in expirations:
             strikes = self.svi_model.implied_probabilities[exp]['probabilities']['strikes']
-            # Ensure strikes are numeric
-            strikes = [float(s) for s in strikes if s is not None and not np.isnan(s)]
-            all_strikes.update(strikes)
+            # Ensure strikes are numeric - convert to numpy array first
+            strikes = np.array(strikes)
+            # Filter out NaN values
+            valid_strikes = strikes[~np.isnan(strikes)]
+            all_strikes.update(valid_strikes.tolist())
         
         all_strikes = sorted(list(all_strikes))
         
@@ -505,9 +507,14 @@ class SVIVisualizer:
             strikes = prob_info['strikes']
             call_probs = prob_info['call_probabilities']
             
-            # Ensure data is numeric and valid
-            strikes = [float(s) for s in strikes if s is not None and not np.isnan(s)]
-            call_probs = [float(p) for p in call_probs if p is not None and not np.isnan(p)]
+            # Ensure data is numeric and valid - convert to numpy arrays first
+            strikes = np.array(strikes)
+            call_probs = np.array(call_probs)
+            
+            # Filter out NaN values
+            valid_mask = ~(np.isnan(strikes) | np.isnan(call_probs))
+            strikes = strikes[valid_mask]
+            call_probs = call_probs[valid_mask]
             
             # Ensure we have matching data
             if len(strikes) != len(call_probs):
@@ -540,10 +547,9 @@ class SVIVisualizer:
             y=expirations,
             colorscale='RdYlGn',  # Red-Yellow-Green for sentiment
             hoverongaps=False,
-            hovertemplate='Strike: $%{x:,.0f}<br>Days: %{y}<br>Call Prob: %{z:.3f}<br>Current: $%{current_price:,.0f}<extra></extra>'.format(current_price=current_price),
+            hovertemplate=f'Strike: $%{{x:,.0f}}<br>Days: %{{y}}<br>Call Prob: %{{z:.3f}}<br>Current: ${current_price:,.0f}<extra></extra>',
             colorbar=dict(
-                title="Call Probability<br>(Market Sentiment)",
-                titleside="right",
+                title=dict(text="Call Probability<br>(Market Sentiment)", side="right"),
                 tickmode="array",
                 tickvals=[0, 0.25, 0.5, 0.75, 1.0],
                 ticktext=["0%", "25%", "50%", "75%", "100%"]
