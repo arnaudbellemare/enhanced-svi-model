@@ -68,8 +68,23 @@ def main():
     st.markdown('<div class="main-header">🎯 Enhanced SVI Model</div>', unsafe_allow_html=True)
     st.markdown("**Stochastic Volatility Inspired Model with Implied Probability Analysis**")
     
+    # Show current crypto selection
+    if st.session_state.selected_crypto == 'Both':
+        st.info(f"🪙 **Currently analyzing**: All cryptocurrencies (BTC + ETH)")
+    else:
+        st.info(f"🪙 **Currently analyzing**: {st.session_state.selected_crypto} only")
+    
     # Sidebar for navigation
     st.sidebar.title("🎮 Navigation")
+    
+    # Crypto selection
+    st.sidebar.markdown("### 🪙 Select Cryptocurrency")
+    selected_crypto = st.sidebar.selectbox(
+        "Choose cryptocurrency:",
+        ["BTC", "ETH", "Both"],
+        index=0 if st.session_state.selected_crypto == 'BTC' else 1 if st.session_state.selected_crypto == 'ETH' else 2
+    )
+    st.session_state.selected_crypto = selected_crypto
     
     # Initialize session state
     if 'svi_model' not in st.session_state:
@@ -78,6 +93,8 @@ def main():
         st.session_state.probabilities = None
     if 'risk_metrics' not in st.session_state:
         st.session_state.risk_metrics = None
+    if 'selected_crypto' not in st.session_state:
+        st.session_state.selected_crypto = 'BTC'  # Default to BTC
     
     # Navigation menu
     page = st.sidebar.selectbox(
@@ -187,8 +204,20 @@ def show_quick_demo():
                 svi = SVIEnhanced()
                 calc = ProbabilityCalculator()
                 
-                # Load data
+                # Load data with crypto filter
                 svi.load_market_data('crypto_data')
+                
+                # Filter by selected cryptocurrency if not "Both"
+                if st.session_state.selected_crypto != 'Both':
+                    original_data = svi.market_data.copy()
+                    filtered_data = original_data[original_data['symbol'] == st.session_state.selected_crypto]
+                    if len(filtered_data) > 0:
+                        svi.market_data = filtered_data
+                        st.info(f"📊 Filtered to {st.session_state.selected_crypto} only: {len(filtered_data)} options")
+                    else:
+                        st.warning(f"⚠️ No {st.session_state.selected_crypto} options found. Using all data.")
+                else:
+                    st.info(f"📊 Using all cryptocurrency data: {len(svi.market_data)} options")
                 
                 # Calculate probabilities
                 probabilities = svi.calculate_implied_probabilities()
@@ -242,6 +271,19 @@ def show_basic_analysis():
             try:
                 svi = SVIEnhanced()
                 svi.load_market_data('crypto_data')
+                
+                # Filter by selected cryptocurrency if not "Both"
+                if st.session_state.selected_crypto != 'Both':
+                    original_data = svi.market_data.copy()
+                    filtered_data = original_data[original_data['symbol'] == st.session_state.selected_crypto]
+                    if len(filtered_data) > 0:
+                        svi.market_data = filtered_data
+                        st.info(f"📊 Filtered to {st.session_state.selected_crypto} only: {len(filtered_data)} options")
+                    else:
+                        st.warning(f"⚠️ No {st.session_state.selected_crypto} options found. Using all data.")
+                else:
+                    st.info(f"📊 Using all cryptocurrency data: {len(svi.market_data)} options")
+                
                 probabilities = svi.calculate_implied_probabilities()
                 
                 st.session_state.svi_model = svi
@@ -415,6 +457,12 @@ def show_visualizations():
     if st.session_state.svi_model is None:
         st.warning("⚠️ Please run Basic Analysis or Advanced Analysis first to generate data.")
         return
+    
+    # Show crypto filter info
+    if st.session_state.selected_crypto == 'Both':
+        st.info(f"🪙 **Visualizing**: All cryptocurrencies (BTC + ETH)")
+    else:
+        st.info(f"🪙 **Visualizing**: {st.session_state.selected_crypto} only")
     
     st.markdown("### 🎨 Choose Visualization Type")
     
