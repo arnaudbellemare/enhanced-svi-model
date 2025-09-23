@@ -471,6 +471,157 @@ class SVIVisualizer:
             f.write(report_html)
         
         print(f"Comprehensive report saved to {save_path}")
+    
+    def plot_interactive_probability_heatmap(self, save_path: Optional[str] = None):
+        """
+        Create interactive probability heatmap using Plotly.
+        
+        Args:
+            save_path: Optional path to save the HTML file
+        """
+        if not self.svi_model.implied_probabilities:
+            self.svi_model.calculate_implied_probabilities()
+        
+        # Prepare data for heatmap
+        expirations = sorted(self.svi_model.implied_probabilities.keys())
+        all_strikes = set()
+        
+        for exp in expirations:
+            strikes = self.svi_model.implied_probabilities[exp]['probabilities']['strikes']
+            all_strikes.update(strikes)
+        
+        all_strikes = sorted(list(all_strikes))
+        
+        # Create probability matrix
+        prob_matrix = []
+        for exp in expirations:
+            prob_info = self.svi_model.implied_probabilities[exp]['probabilities']
+            strikes = prob_info['strikes']
+            call_probs = prob_info['call_probabilities']
+            
+            # Interpolate probabilities for all strikes
+            interp_probs = np.interp(all_strikes, strikes, call_probs)
+            prob_matrix.append(interp_probs)
+        
+        # Create interactive heatmap
+        fig = go.Figure(data=go.Heatmap(
+            z=prob_matrix,
+            x=all_strikes,
+            y=expirations,
+            colorscale='Viridis',
+            hoverongaps=False,
+            hovertemplate='Strike: %{x}<br>Expiration: %{y} days<br>Probability: %{z:.3f}<extra></extra>'
+        ))
+        
+        fig.update_layout(
+            title='Interactive Probability Heatmap',
+            xaxis_title='Strike Price',
+            yaxis_title='Days to Expiration',
+            width=800,
+            height=600
+        )
+        
+        if save_path:
+            fig.write_html(save_path)
+        
+        return fig
+    
+    def plot_implied_probability_density_with_price(self, save_path: Optional[str] = None):
+        """
+        Create implied probability density function with actual price bar.
+        
+        Args:
+            save_path: Optional path to save the plot
+        """
+        if not self.svi_model.implied_probabilities:
+            self.svi_model.calculate_implied_probabilities()
+        
+        # Get current price from market data
+        current_price = self.svi_model.market_data['spot_price'].iloc[0]
+        
+        # Get the first expiration for main plot
+        first_exp = list(self.svi_model.implied_probabilities.keys())[0]
+        prob_info = self.svi_model.implied_probabilities[first_exp]['probabilities']
+        
+        strikes = prob_info['strikes']
+        density = prob_info['risk_neutral_density']
+        
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Calculate cumulative density for tail risk visualization
+        cumulative_density = np.cumsum(density) * (strikes[1] - strikes[0])  # Approximate integration
+        cumulative_density = cumulative_density / cumulative_density[-1]  # Normalize to 1
+        
+        # Find 16th and 84th percentiles (16% tails, 68% middle)
+        tail_lower_idx = np.argmin(np.abs(cumulative_density - 0.16))
+        tail_upper_idx = np.argmin(np.abs(cumulative_density - 0.84))
+        
+        tail_lower_strike = strikes[tail_lower_idx]
+        tail_upper_strike = strikes[tail_upper_idx]
+        
+        # Plot the probability density with tail risk coloring
+        ax.plot(strikes, density, 'k-', linewidth=2, label='Risk-Neutral Density')
+        
+        # Color the 16% tails in red (high tail risk)
+        left_tail_mask = strikes <= tail_lower_strike
+        right_tail_mask = strikes >= tail_upper_strike
+        
+        if np.any(left_tail_mask):
+            ax.fill_between(strikes[left_tail_mask], density[left_tail_mask], 
+                           alpha=0.7, color='red', label='16% Left Tail (Downside Risk)')
+        
+        if np.any(right_tail_mask):
+            ax.fill_between(strikes[right_tail_mask], density[right_tail_mask], 
+                           alpha=0.7, color='red', label='16% Right Tail (Upside Risk)')
+        
+        # Color the 68% middle in green (normal distribution)
+        middle_mask = (strikes > tail_lower_strike) & (strikes < tail_upper_strike)
+        if np.any(middle_mask):
+            ax.fill_between(strikes[middle_mask], density[middle_mask], 
+                           alpha=0.5, color='green', label='68% Middle (Normal Range)')
+        
+        # Add vertical line for current price
+        ax.axvline(x=current_price, color='blue', linestyle='--', linewidth=3, 
+                  label=f'Current Price: ${current_price:,.2f}')
+        
+        # Add vertical lines for tail boundaries
+        ax.axvline(x=tail_lower_strike, color='red', linestyle=':', linewidth=2, alpha=0.7,
+                  label=f'16% Tail Boundary: ${tail_lower_strike:,.2f}')
+        ax.axvline(x=tail_upper_strike, color='red', linestyle=':', linewidth=2, alpha=0.7,
+                  label=f'84% Tail Boundary: ${tail_upper_strike:,.2f}')
+        
+        # Add probability at current price
+        price_density = np.interp(current_price, strikes, density)
+        ax.plot(current_price, price_density, 'ro', markersize=10, 
+               label=f'Density at Price: {price_density:.4f}')
+        
+        ax.set_xlabel('Strike Price', fontsize=12)
+        ax.set_ylabel('Probability Density', fontsize=12)
+        ax.set_title(f'Implied Probability Density Function - {first_exp} Days to Expiration\n'
+                    f'Current Price: ${current_price:,.2f}', fontsize=14)
+        ax.legend(fontsize=10)
+        ax.grid(True, alpha=0.3)
+        
+        # Add text box with key information including tail risk
+        textstr = f'Current Price: ${current_price:,.2f}\n'
+        textstr += f'Density at Price: {price_density:.4f}\n'
+        textstr += f'Expiration: {first_exp} days\n'
+        textstr += f'16% Tail Boundaries:\n'
+        textstr += f'  Lower: ${tail_lower_strike:,.2f}\n'
+        textstr += f'  Upper: ${tail_upper_strike:,.2f}\n'
+        textstr += f'Tail Risk: {((tail_lower_strike - current_price) / current_price * 100):.1f}% to {((tail_upper_strike - current_price) / current_price * 100):.1f}%'
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=9,
+                verticalalignment='top', bbox=props)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        
+        return fig
 
 
 # Example usage

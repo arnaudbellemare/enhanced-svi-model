@@ -446,9 +446,13 @@ def show_visualizations():
             with st.spinner("Creating interactive heatmap..."):
                 try:
                     visualizer = SVIVisualizer(st.session_state.svi_model)
-                    visualizer.plot_interactive_probability_heatmap('streamlit_heatmap.html')
+                    fig = visualizer.plot_interactive_probability_heatmap('streamlit_heatmap.html')
                     st.success("✅ Interactive heatmap created!")
-                    st.markdown("📁 Interactive heatmap saved as 'streamlit_heatmap.html'")
+                    
+                    # Display the interactive heatmap directly in Streamlit
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive heatmap also saved as 'streamlit_heatmap.html'")
                 except Exception as e:
                     st.error(f"❌ Error creating heatmap: {e}")
         
@@ -461,6 +465,37 @@ def show_visualizations():
                     st.image('streamlit_svi_parameters.png', caption='SVI Parameter Analysis')
                 except Exception as e:
                     st.error(f"❌ Error creating SVI analysis: {e}")
+    
+    # Add new visualization section for probability density
+    st.markdown("### 🎯 Advanced Probability Analysis")
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        if st.button("📊 Probability Density with Price", type="primary"):
+            with st.spinner("Creating probability density with current price..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_implied_probability_density_with_price('streamlit_density.png')
+                    st.success("✅ Probability density created!")
+                    
+                    # Display the plot
+                    st.pyplot(fig)
+                    
+                    st.markdown("📁 Probability density also saved as 'streamlit_density.png'")
+                except Exception as e:
+                    st.error(f"❌ Error creating probability density: {e}")
+    
+    with col4:
+        if st.button("🔄 Probability Evolution", type="primary"):
+            with st.spinner("Creating probability evolution..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    visualizer.plot_probability_evolution_animation('streamlit_evolution.png')
+                    st.success("✅ Probability evolution created!")
+                    st.image('streamlit_evolution.png', caption='Probability Evolution')
+                except Exception as e:
+                    st.error(f"❌ Error creating evolution plot: {e}")
 
 def show_export_data():
     """Display the export data page."""
