@@ -546,6 +546,10 @@ class SVIVisualizer:
         strikes = prob_info['strikes']
         density = prob_info['risk_neutral_density']
         
+        # Convert to numpy arrays to ensure proper indexing
+        strikes = np.array(strikes)
+        density = np.array(density)
+        
         # Create the plot
         fig, ax = plt.subplots(figsize=(12, 8))
         
