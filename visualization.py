@@ -574,44 +574,44 @@ class SVIVisualizer:
             hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<extra></extra>'
         ))
         
-        # Add left tail (16% downside risk)
+        # Add left tail (16% downside risk) - RED
         left_tail_mask = strikes <= tail_lower_strike
         if np.any(left_tail_mask):
             fig.add_trace(go.Scatter(
                 x=strikes[left_tail_mask],
                 y=density[left_tail_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(255, 0, 0, 0.6)',
-                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(220, 38, 38, 0.7)',  # Clear red
+                line=dict(color='rgba(220, 38, 38, 1)', width=2),
                 name='16% Left Tail (Downside Risk)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Downside<extra></extra>'
             ))
         
-        # Add right tail (16% upside risk)
+        # Add right tail (16% upside risk) - ORANGE
         right_tail_mask = strikes >= tail_upper_strike
         if np.any(right_tail_mask):
             fig.add_trace(go.Scatter(
                 x=strikes[right_tail_mask],
                 y=density[right_tail_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(255, 0, 0, 0.6)',
-                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(251, 146, 60, 0.7)',  # Clear orange
+                line=dict(color='rgba(251, 146, 60, 1)', width=2),
                 name='16% Right Tail (Upside Risk)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Upside<extra></extra>'
             ))
         
-        # Add middle section (68% normal range)
+        # Add middle section (68% normal range) - GREEN
         middle_mask = (strikes > tail_lower_strike) & (strikes < tail_upper_strike)
         if np.any(middle_mask):
             fig.add_trace(go.Scatter(
                 x=strikes[middle_mask],
                 y=density[middle_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(0, 255, 0, 0.4)',
-                line=dict(color='rgba(0, 255, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(34, 197, 94, 0.5)',  # Clear green
+                line=dict(color='rgba(34, 197, 94, 1)', width=2),
                 name='68% Middle (Normal Range)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Normal<extra></extra>'
             ))
@@ -658,60 +658,62 @@ class SVIVisualizer:
                 font=dict(size=20, color='#2c3e50')
             ),
             xaxis=dict(
-                title='Strike Price ($)',
-                titlefont=dict(size=14, color='#2c3e50'),
+                title=dict(text='Strike Price ($)', font=dict(size=14, color='#2c3e50')),
                 tickfont=dict(size=12),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
             yaxis=dict(
-                title='Probability Density',
-                titlefont=dict(size=14, color='#2c3e50'),
+                title=dict(text='Probability Density', font=dict(size=14, color='#2c3e50')),
                 tickfont=dict(size=12),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
             plot_bgcolor='white',
             paper_bgcolor='white',
-            width=1000,
-            height=600,
-            margin=dict(l=50, r=50, t=100, b=50),
+            width=1200,
+            height=700,
+            margin=dict(l=120, r=50, t=120, b=80),  # More left margin for metrics box
             legend=dict(
                 orientation="v",
                 yanchor="top",
                 y=0.99,
                 xanchor="left",
-                x=0.01,
-                bgcolor='rgba(255,255,255,0.8)',
-                bordercolor='rgba(0,0,0,0.2)',
-                borderwidth=1
+                x=0.99,  # Move legend to right side
+                bgcolor='rgba(255,255,255,0.95)',
+                bordercolor='rgba(0,0,0,0.3)',
+                borderwidth=1,
+                font=dict(size=11)
             ),
             hovermode='x unified'
         )
         
-        # Add annotation box with key metrics
+        # Add clean metrics box with better positioning
         tail_risk_down = ((tail_lower_strike - current_price) / current_price * 100)
         tail_risk_up = ((tail_upper_strike - current_price) / current_price * 100)
         
         fig.add_annotation(
-            x=0.02,
-            y=0.98,
+            x=0.01,
+            y=0.95,
             xref='paper',
             yref='paper',
-            text=f'<b>Key Metrics:</b><br>'
-                 f'Current Price: ${current_price:,.2f}<br>'
-                 f'Density at Price: {price_density:.6f}<br>'
-                 f'Expiration: {first_exp} days<br>'
-                 f'<b>Tail Boundaries:</b><br>'
-                 f'Lower: ${tail_lower_strike:,.2f}<br>'
-                 f'Upper: ${tail_upper_strike:,.2f}<br>'
-                 f'<b>Tail Risk:</b> {tail_risk_down:.1f}% to {tail_risk_up:.1f}%',
+            text=f'<b>📊 KEY METRICS</b><br>'
+                 f'💰 Current Price: <b>${current_price:,.0f}</b><br>'
+                 f'📈 Density at Price: <b>{price_density:.6f}</b><br>'
+                 f'📅 Expiration: <b>{first_exp} days</b><br>'
+                 f'<br><b>🎯 TAIL BOUNDARIES</b><br>'
+                 f'🔴 Lower: <b>${tail_lower_strike:,.0f}</b><br>'
+                 f'🟠 Upper: <b>${tail_upper_strike:,.0f}</b><br>'
+                 f'<br><b>⚠️ TAIL RISK</b><br>'
+                 f'<b>{tail_risk_down:.1f}% to {tail_risk_up:.1f}%</b>',
             showarrow=False,
             align='left',
-            bgcolor='rgba(255,255,255,0.9)',
-            bordercolor='rgba(0,0,0,0.3)',
-            borderwidth=1,
-            font=dict(size=11, color='#2c3e50')
+            bgcolor='rgba(248, 250, 252, 0.95)',
+            bordercolor='rgba(59, 130, 246, 0.3)',
+            borderwidth=2,
+            font=dict(size=12, color='#1e293b'),
+            xanchor='left',
+            yanchor='top'
         )
         
         if save_path:
@@ -800,44 +802,44 @@ class SVIVisualizer:
             hovertemplate='Strike: $%{x:,.0f}<br>Aggregated Density: %{y:.6f}<extra></extra>'
         ))
         
-        # Add left tail (16% downside risk)
+        # Add left tail (16% downside risk) - RED
         left_tail_mask = strike_grid <= tail_lower_strike
         if np.any(left_tail_mask):
             fig.add_trace(go.Scatter(
                 x=strike_grid[left_tail_mask],
                 y=aggregated_density[left_tail_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(255, 0, 0, 0.6)',
-                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(220, 38, 38, 0.7)',  # Clear red
+                line=dict(color='rgba(220, 38, 38, 1)', width=2),
                 name='16% Left Tail (Downside Risk)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Downside<extra></extra>'
             ))
         
-        # Add right tail (16% upside risk)
+        # Add right tail (16% upside risk) - ORANGE
         right_tail_mask = strike_grid >= tail_upper_strike
         if np.any(right_tail_mask):
             fig.add_trace(go.Scatter(
                 x=strike_grid[right_tail_mask],
                 y=aggregated_density[right_tail_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(255, 0, 0, 0.6)',
-                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(251, 146, 60, 0.7)',  # Clear orange
+                line=dict(color='rgba(251, 146, 60, 1)', width=2),
                 name='16% Right Tail (Upside Risk)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Upside<extra></extra>'
             ))
         
-        # Add middle section (68% normal range)
+        # Add middle section (68% normal range) - GREEN
         middle_mask = (strike_grid > tail_lower_strike) & (strike_grid < tail_upper_strike)
         if np.any(middle_mask):
             fig.add_trace(go.Scatter(
                 x=strike_grid[middle_mask],
                 y=aggregated_density[middle_mask],
                 mode='lines',
-                fill='tonexty',
-                fillcolor='rgba(0, 255, 0, 0.4)',
-                line=dict(color='rgba(0, 255, 0, 0.8)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(34, 197, 94, 0.5)',  # Clear green
+                line=dict(color='rgba(34, 197, 94, 1)', width=2),
                 name='68% Middle (Normal Range)',
                 hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Normal<extra></extra>'
             ))
@@ -900,45 +902,49 @@ class SVIVisualizer:
             ),
             plot_bgcolor='white',
             paper_bgcolor='white',
-            width=1200,
-            height=700,
-            margin=dict(l=50, r=50, t=120, b=50),
+            width=1400,
+            height=800,
+            margin=dict(l=120, r=50, t=120, b=80),  # More left margin for metrics box
             legend=dict(
                 orientation="v",
                 yanchor="top",
                 y=0.99,
                 xanchor="left",
-                x=0.01,
-                bgcolor='rgba(255,255,255,0.9)',
-                bordercolor='rgba(0,0,0,0.2)',
-                borderwidth=1
+                x=0.99,  # Move legend to right side
+                bgcolor='rgba(255,255,255,0.95)',
+                bordercolor='rgba(0,0,0,0.3)',
+                borderwidth=1,
+                font=dict(size=11)
             ),
             hovermode='x unified'
         )
         
-        # Add annotation box with key metrics
+        # Add clean metrics box with better positioning
         tail_risk_down = ((tail_lower_strike - current_price) / current_price * 100)
         tail_risk_up = ((tail_upper_strike - current_price) / current_price * 100)
         
         fig.add_annotation(
-            x=0.02,
-            y=0.98,
+            x=0.01,
+            y=0.95,
             xref='paper',
             yref='paper',
-            text=f'<b>Aggregated Metrics:</b><br>'
-                 f'Current Price: ${current_price:,.2f}<br>'
-                 f'Aggregated Density: {price_density:.6f}<br>'
-                 f'Expirations: {all_expirations[0]}-{all_expirations[-1]} days<br>'
-                 f'<b>Tail Boundaries:</b><br>'
-                 f'Lower: ${tail_lower_strike:,.2f}<br>'
-                 f'Upper: ${tail_upper_strike:,.2f}<br>'
-                 f'<b>Aggregated Tail Risk:</b> {tail_risk_down:.1f}% to {tail_risk_up:.1f}%',
+            text=f'<b>📊 AGGREGATED METRICS</b><br>'
+                 f'💰 Current Price: <b>${current_price:,.0f}</b><br>'
+                 f'📈 Density at Price: <b>{price_density:.6f}</b><br>'
+                 f'📅 Expirations: <b>{all_expirations[0]}-{all_expirations[-1]} days</b><br>'
+                 f'<br><b>🎯 TAIL BOUNDARIES</b><br>'
+                 f'🔴 Lower: <b>${tail_lower_strike:,.0f}</b><br>'
+                 f'🟠 Upper: <b>${tail_upper_strike:,.0f}</b><br>'
+                 f'<br><b>⚠️ TAIL RISK</b><br>'
+                 f'<b>{tail_risk_down:.1f}% to {tail_risk_up:.1f}%</b>',
             showarrow=False,
             align='left',
-            bgcolor='rgba(255,255,255,0.9)',
-            bordercolor='rgba(0,0,0,0.3)',
-            borderwidth=1,
-            font=dict(size=11, color='#2c3e50')
+            bgcolor='rgba(248, 250, 252, 0.95)',
+            bordercolor='rgba(59, 130, 246, 0.3)',
+            borderwidth=2,
+            font=dict(size=12, color='#1e293b'),
+            xanchor='left',
+            yanchor='top'
         )
         
         if save_path:
