@@ -266,6 +266,22 @@ def show_basic_analysis():
     """Display the basic analysis page."""
     st.markdown("## 📊 Basic Analysis - Core SVI with Probabilities")
     
+    # Check if we need to re-filter existing data
+    if st.session_state.svi_model is not None:
+        current_data = st.session_state.svi_model.market_data
+        if st.session_state.selected_crypto != 'Both':
+            # Check if data needs filtering
+            crypto_counts = current_data['symbol'].value_counts()
+            if len(crypto_counts) > 1 or (len(crypto_counts) == 1 and crypto_counts.index[0] != st.session_state.selected_crypto):
+                st.warning(f"⚠️ **Data mismatch detected!** Current data contains {list(crypto_counts.index)}, but you selected {st.session_state.selected_crypto}. Please re-run your analysis to get {st.session_state.selected_crypto}-only data.")
+                if st.button(f"🔄 Re-run Analysis for {st.session_state.selected_crypto} Only", type="primary"):
+                    # Clear session state to force re-analysis
+                    st.session_state.svi_model = None
+                    st.session_state.probabilities = None
+                    st.session_state.risk_metrics = None
+                    st.rerun()
+                return
+    
     if st.button("🔍 Run Basic Analysis", type="primary"):
         with st.spinner("Running basic analysis..."):
             try:
@@ -345,11 +361,40 @@ def show_advanced_analysis():
     """Display the advanced analysis page."""
     st.markdown("## 🔬 Advanced Analysis - Detailed Risk Metrics")
     
+    # Check if we need to re-filter existing data
+    if st.session_state.svi_model is not None:
+        current_data = st.session_state.svi_model.market_data
+        if st.session_state.selected_crypto != 'Both':
+            # Check if data needs filtering
+            crypto_counts = current_data['symbol'].value_counts()
+            if len(crypto_counts) > 1 or (len(crypto_counts) == 1 and crypto_counts.index[0] != st.session_state.selected_crypto):
+                st.warning(f"⚠️ **Data mismatch detected!** Current data contains {list(crypto_counts.index)}, but you selected {st.session_state.selected_crypto}. Please re-run your analysis to get {st.session_state.selected_crypto}-only data.")
+                if st.button(f"🔄 Re-run Analysis for {st.session_state.selected_crypto} Only", type="primary"):
+                    # Clear session state to force re-analysis
+                    st.session_state.svi_model = None
+                    st.session_state.probabilities = None
+                    st.session_state.risk_metrics = None
+                    st.rerun()
+                return
+    
     if st.button("🔬 Run Advanced Analysis", type="primary"):
         with st.spinner("Running advanced analysis..."):
             try:
                 svi = SVIEnhanced()
                 svi.load_market_data('crypto_data')
+                
+                # Filter by selected cryptocurrency if not "Both"
+                if st.session_state.selected_crypto != 'Both':
+                    original_data = svi.market_data.copy()
+                    filtered_data = original_data[original_data['symbol'] == st.session_state.selected_crypto]
+                    if len(filtered_data) > 0:
+                        svi.market_data = filtered_data
+                        st.info(f"📊 Filtered to {st.session_state.selected_crypto} only: {len(filtered_data)} options")
+                    else:
+                        st.warning(f"⚠️ No {st.session_state.selected_crypto} options found. Using all data.")
+                else:
+                    st.info(f"📊 Using all cryptocurrency data: {len(svi.market_data)} options")
+                
                 svi.calculate_implied_probabilities()
                 risk_metrics = svi.get_risk_metrics()
                 
@@ -463,6 +508,21 @@ def show_visualizations():
         st.info(f"🪙 **Visualizing**: All cryptocurrencies (BTC + ETH)")
     else:
         st.info(f"🪙 **Visualizing**: {st.session_state.selected_crypto} only")
+    
+    # Check if we need to re-filter existing data
+    if st.session_state.svi_model is not None:
+        current_data = st.session_state.svi_model.market_data
+        if st.session_state.selected_crypto != 'Both':
+            # Check if data needs filtering
+            crypto_counts = current_data['symbol'].value_counts()
+            if len(crypto_counts) > 1 or (len(crypto_counts) == 1 and crypto_counts.index[0] != st.session_state.selected_crypto):
+                st.warning(f"⚠️ **Data mismatch detected!** Current data contains {list(crypto_counts.index)}, but you selected {st.session_state.selected_crypto}. Please re-run your analysis to get {st.session_state.selected_crypto}-only data.")
+                if st.button(f"🔄 Re-run Analysis for {st.session_state.selected_crypto} Only", type="primary"):
+                    # Clear session state to force re-analysis
+                    st.session_state.svi_model = None
+                    st.session_state.probabilities = None
+                    st.session_state.risk_metrics = None
+                    st.rerun()
     
     st.markdown("### 🎨 Choose Visualization Type")
     
