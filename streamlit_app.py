@@ -473,16 +473,16 @@ def show_visualizations():
     
     with col3:
         if st.button("📊 Probability Density with Price", type="primary"):
-            with st.spinner("Creating probability density with current price..."):
+            with st.spinner("Creating beautiful probability density with tail risk..."):
                 try:
                     visualizer = SVIVisualizer(st.session_state.svi_model)
-                    fig = visualizer.plot_implied_probability_density_with_price('streamlit_density.png')
-                    st.success("✅ Probability density created!")
+                    fig = visualizer.plot_implied_probability_density_with_price('streamlit_density.html')
+                    st.success("✅ Beautiful probability density created!")
                     
-                    # Display the plot
-                    st.pyplot(fig)
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
                     
-                    st.markdown("📁 Probability density also saved as 'streamlit_density.png'")
+                    st.markdown("📁 Interactive probability density also saved as 'streamlit_density.html'")
                 except Exception as e:
                     st.error(f"❌ Error creating probability density: {e}")
     
@@ -496,6 +496,77 @@ def show_visualizations():
                     st.image('streamlit_evolution.png', caption='Probability Evolution')
                 except Exception as e:
                     st.error(f"❌ Error creating evolution plot: {e}")
+    
+    # Add aggregate visualization section
+    st.markdown("### 🌐 Aggregate Analysis Across All Expirations")
+    
+    col5, col6 = st.columns(2)
+    
+    with col5:
+        if st.button("📊 Aggregate Probability Density", type="primary"):
+            with st.spinner("Creating aggregate probability density across all expirations..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_aggregate_probability_density_with_price('streamlit_aggregate.html')
+                    st.success("✅ Aggregate probability density created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive aggregate density also saved as 'streamlit_aggregate.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating aggregate density: {e}")
+    
+    with col6:
+        if st.button("📈 Multi-Expiration Comparison", type="primary"):
+            with st.spinner("Creating multi-expiration comparison..."):
+                try:
+                    # Create a comparison plot showing multiple expirations
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    
+                    # Get all expirations
+                    all_expirations = sorted(st.session_state.svi_model.implied_probabilities.keys())
+                    
+                    # Create comparison figure
+                    fig = go.Figure()
+                    
+                    colors = px.colors.qualitative.Set3
+                    for i, exp in enumerate(all_expirations[:5]):  # Show first 5 expirations
+                        prob_info = st.session_state.svi_model.implied_probabilities[exp]['probabilities']
+                        strikes = np.array(prob_info['strikes'])
+                        density = np.array(prob_info['risk_neutral_density'])
+                        
+                        fig.add_trace(go.Scatter(
+                            x=strikes,
+                            y=density,
+                            mode='lines',
+                            name=f'{exp} days',
+                            line=dict(color=colors[i % len(colors)], width=2),
+                            hovertemplate=f'{exp} days<br>Strike: $%{{x:,.0f}}<br>Density: %{{y:.6f}}<extra></extra>'
+                        ))
+                    
+                    # Add current price line
+                    current_price = st.session_state.svi_model.market_data['spot_price'].iloc[0]
+                    fig.add_vline(
+                        x=current_price,
+                        line=dict(color='red', width=3, dash='dash'),
+                        annotation_text=f'Current Price: ${current_price:,.2f}'
+                    )
+                    
+                    fig.update_layout(
+                        title='Multi-Expiration Probability Density Comparison',
+                        xaxis_title='Strike Price ($)',
+                        yaxis_title='Probability Density',
+                        width=800,
+                        height=500,
+                        hovermode='x unified'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.success("✅ Multi-expiration comparison created!")
+                    
+                except Exception as e:
+                    st.error(f"❌ Error creating comparison: {e}")
 
 def show_export_data():
     """Display the export data page."""

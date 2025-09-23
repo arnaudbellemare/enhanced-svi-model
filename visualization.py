@@ -528,10 +528,10 @@ class SVIVisualizer:
     
     def plot_implied_probability_density_with_price(self, save_path: Optional[str] = None):
         """
-        Create implied probability density function with actual price bar.
+        Create beautiful implied probability density function with tail risk visualization using Plotly.
         
         Args:
-            save_path: Optional path to save the plot
+            save_path: Optional path to save the HTML file
         """
         if not self.svi_model.implied_probabilities:
             self.svi_model.calculate_implied_probabilities()
@@ -550,9 +550,6 @@ class SVIVisualizer:
         strikes = np.array(strikes)
         density = np.array(density)
         
-        # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 8))
-        
         # Calculate cumulative density for tail risk visualization
         cumulative_density = np.cumsum(density) * (strikes[1] - strikes[0])  # Approximate integration
         cumulative_density = cumulative_density / cumulative_density[-1]  # Normalize to 1
@@ -564,72 +561,388 @@ class SVIVisualizer:
         tail_lower_strike = strikes[tail_lower_idx]
         tail_upper_strike = strikes[tail_upper_idx]
         
-        # Plot the probability density with tail risk coloring
-        ax.plot(strikes, density, 'k-', linewidth=2, label='Risk-Neutral Density')
+        # Create beautiful Plotly figure
+        fig = go.Figure()
         
-        # Color the 16% tails in red (high tail risk)
+        # Add main density curve
+        fig.add_trace(go.Scatter(
+            x=strikes,
+            y=density,
+            mode='lines',
+            name='Risk-Neutral Density',
+            line=dict(color='#1f77b4', width=3),
+            hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<extra></extra>'
+        ))
+        
+        # Add left tail (16% downside risk)
         left_tail_mask = strikes <= tail_lower_strike
-        right_tail_mask = strikes >= tail_upper_strike
-        
         if np.any(left_tail_mask):
-            left_strikes = strikes[left_tail_mask]
-            left_density = density[left_tail_mask]
-            ax.fill_between(left_strikes, left_density, 
-                           alpha=0.7, color='red', label='16% Left Tail (Downside Risk)')
+            fig.add_trace(go.Scatter(
+                x=strikes[left_tail_mask],
+                y=density[left_tail_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(255, 0, 0, 0.6)',
+                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                name='16% Left Tail (Downside Risk)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Downside<extra></extra>'
+            ))
         
+        # Add right tail (16% upside risk)
+        right_tail_mask = strikes >= tail_upper_strike
         if np.any(right_tail_mask):
-            right_strikes = strikes[right_tail_mask]
-            right_density = density[right_tail_mask]
-            ax.fill_between(right_strikes, right_density, 
-                           alpha=0.7, color='red', label='16% Right Tail (Upside Risk)')
+            fig.add_trace(go.Scatter(
+                x=strikes[right_tail_mask],
+                y=density[right_tail_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(255, 0, 0, 0.6)',
+                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                name='16% Right Tail (Upside Risk)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Upside<extra></extra>'
+            ))
         
-        # Color the 68% middle in green (normal distribution)
+        # Add middle section (68% normal range)
         middle_mask = (strikes > tail_lower_strike) & (strikes < tail_upper_strike)
         if np.any(middle_mask):
-            middle_strikes = strikes[middle_mask]
-            middle_density = density[middle_mask]
-            ax.fill_between(middle_strikes, middle_density, 
-                           alpha=0.5, color='green', label='68% Middle (Normal Range)')
+            fig.add_trace(go.Scatter(
+                x=strikes[middle_mask],
+                y=density[middle_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(0, 255, 0, 0.4)',
+                line=dict(color='rgba(0, 255, 0, 0.8)', width=2),
+                name='68% Middle (Normal Range)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Normal<extra></extra>'
+            ))
         
-        # Add vertical line for current price
-        ax.axvline(x=current_price, color='blue', linestyle='--', linewidth=3, 
-                  label=f'Current Price: ${current_price:,.2f}')
-        
-        # Add vertical lines for tail boundaries
-        ax.axvline(x=tail_lower_strike, color='red', linestyle=':', linewidth=2, alpha=0.7,
-                  label=f'16% Tail Boundary: ${tail_lower_strike:,.2f}')
-        ax.axvline(x=tail_upper_strike, color='red', linestyle=':', linewidth=2, alpha=0.7,
-                  label=f'84% Tail Boundary: ${tail_upper_strike:,.2f}')
-        
-        # Add probability at current price
+        # Add current price line
         price_density = np.interp(current_price, strikes, density)
-        ax.plot(current_price, price_density, 'ro', markersize=10, 
-               label=f'Density at Price: {price_density:.4f}')
+        fig.add_vline(
+            x=current_price,
+            line=dict(color='#2E86AB', width=3, dash='dash'),
+            annotation_text=f'Current Price: ${current_price:,.2f}',
+            annotation_position="top right"
+        )
         
-        ax.set_xlabel('Strike Price', fontsize=12)
-        ax.set_ylabel('Probability Density', fontsize=12)
-        ax.set_title(f'Implied Probability Density Function - {first_exp} Days to Expiration\n'
-                    f'Current Price: ${current_price:,.2f}', fontsize=14)
-        ax.legend(fontsize=10)
-        ax.grid(True, alpha=0.3)
+        # Add tail boundary lines
+        fig.add_vline(
+            x=tail_lower_strike,
+            line=dict(color='red', width=2, dash='dot'),
+            annotation_text=f'16% Tail: ${tail_lower_strike:,.0f}',
+            annotation_position="bottom"
+        )
         
-        # Add text box with key information including tail risk
-        textstr = f'Current Price: ${current_price:,.2f}\n'
-        textstr += f'Density at Price: {price_density:.4f}\n'
-        textstr += f'Expiration: {first_exp} days\n'
-        textstr += f'16% Tail Boundaries:\n'
-        textstr += f'  Lower: ${tail_lower_strike:,.2f}\n'
-        textstr += f'  Upper: ${tail_upper_strike:,.2f}\n'
-        textstr += f'Tail Risk: {((tail_lower_strike - current_price) / current_price * 100):.1f}% to {((tail_upper_strike - current_price) / current_price * 100):.1f}%'
+        fig.add_vline(
+            x=tail_upper_strike,
+            line=dict(color='red', width=2, dash='dot'),
+            annotation_text=f'84% Tail: ${tail_upper_strike:,.0f}',
+            annotation_position="bottom"
+        )
         
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=9,
-                verticalalignment='top', bbox=props)
+        # Add current price point
+        fig.add_trace(go.Scatter(
+            x=[current_price],
+            y=[price_density],
+            mode='markers',
+            marker=dict(color='#2E86AB', size=12, symbol='diamond'),
+            name=f'Current Price: ${current_price:,.2f}',
+            hovertemplate=f'Current Price: ${current_price:,.2f}<br>Density: {price_density:.6f}<extra></extra>'
+        ))
         
-        plt.tight_layout()
+        # Update layout for beautiful appearance
+        fig.update_layout(
+            title=dict(
+                text=f'<b>Implied Probability Density Function</b><br><sub>{first_exp} Days to Expiration | Current Price: ${current_price:,.2f}</sub>',
+                x=0.5,
+                font=dict(size=20, color='#2c3e50')
+            ),
+            xaxis=dict(
+                title='Strike Price ($)',
+                titlefont=dict(size=14, color='#2c3e50'),
+                tickfont=dict(size=12),
+                gridcolor='rgba(128,128,128,0.2)',
+                showgrid=True
+            ),
+            yaxis=dict(
+                title='Probability Density',
+                titlefont=dict(size=14, color='#2c3e50'),
+                tickfont=dict(size=12),
+                gridcolor='rgba(128,128,128,0.2)',
+                showgrid=True
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=600,
+            margin=dict(l=50, r=50, t=100, b=50),
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor='rgba(255,255,255,0.8)',
+                bordercolor='rgba(0,0,0,0.2)',
+                borderwidth=1
+            ),
+            hovermode='x unified'
+        )
+        
+        # Add annotation box with key metrics
+        tail_risk_down = ((tail_lower_strike - current_price) / current_price * 100)
+        tail_risk_up = ((tail_upper_strike - current_price) / current_price * 100)
+        
+        fig.add_annotation(
+            x=0.02,
+            y=0.98,
+            xref='paper',
+            yref='paper',
+            text=f'<b>Key Metrics:</b><br>'
+                 f'Current Price: ${current_price:,.2f}<br>'
+                 f'Density at Price: {price_density:.6f}<br>'
+                 f'Expiration: {first_exp} days<br>'
+                 f'<b>Tail Boundaries:</b><br>'
+                 f'Lower: ${tail_lower_strike:,.2f}<br>'
+                 f'Upper: ${tail_upper_strike:,.2f}<br>'
+                 f'<b>Tail Risk:</b> {tail_risk_down:.1f}% to {tail_risk_up:.1f}%',
+            showarrow=False,
+            align='left',
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(0,0,0,0.3)',
+            borderwidth=1,
+            font=dict(size=11, color='#2c3e50')
+        )
         
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            fig.write_html(save_path)
+        
+        return fig
+    
+    def plot_aggregate_probability_density_with_price(self, save_path: Optional[str] = None):
+        """
+        Create beautiful aggregate probability density function across ALL expirations using Plotly.
+        
+        Args:
+            save_path: Optional path to save the HTML file
+        """
+        if not self.svi_model.implied_probabilities:
+            self.svi_model.calculate_implied_probabilities()
+        
+        # Get current price from market data
+        current_price = self.svi_model.market_data['spot_price'].iloc[0]
+        
+        # Aggregate data across all expirations
+        all_strikes = []
+        all_densities = []
+        expiration_weights = []
+        
+        for exp, data in self.svi_model.implied_probabilities.items():
+            prob_info = data['probabilities']
+            strikes = np.array(prob_info['strikes'])
+            density = np.array(prob_info['risk_neutral_density'])
+            
+            # Weight by time to expiration (longer expirations get more weight)
+            weight = max(1, exp)  # Avoid zero weight for same-day expirations
+            
+            all_strikes.extend(strikes)
+            all_densities.extend(density * weight)
+            expiration_weights.extend([weight] * len(strikes))
+        
+        # Convert to numpy arrays
+        all_strikes = np.array(all_strikes)
+        all_densities = np.array(all_densities)
+        expiration_weights = np.array(expiration_weights)
+        
+        # Create a grid for interpolation
+        min_strike = np.min(all_strikes)
+        max_strike = np.max(all_strikes)
+        strike_grid = np.linspace(min_strike, max_strike, 200)
+        
+        # Interpolate and aggregate densities
+        aggregated_density = np.zeros_like(strike_grid)
+        for i, exp in enumerate(self.svi_model.implied_probabilities.keys()):
+            prob_info = self.svi_model.implied_probabilities[exp]['probabilities']
+            strikes = np.array(prob_info['strikes'])
+            density = np.array(prob_info['risk_neutral_density'])
+            
+            # Interpolate to common grid
+            interp_density = np.interp(strike_grid, strikes, density)
+            
+            # Weight by expiration (longer expirations get more weight)
+            weight = max(1, exp)
+            aggregated_density += interp_density * weight
+        
+        # Normalize the aggregated density
+        aggregated_density = aggregated_density / np.trapz(aggregated_density, strike_grid)
+        
+        # Calculate cumulative density for tail risk visualization
+        cumulative_density = np.cumsum(aggregated_density) * (strike_grid[1] - strike_grid[0])
+        cumulative_density = cumulative_density / cumulative_density[-1]
+        
+        # Find 16th and 84th percentiles (16% tails, 68% middle)
+        tail_lower_idx = np.argmin(np.abs(cumulative_density - 0.16))
+        tail_upper_idx = np.argmin(np.abs(cumulative_density - 0.84))
+        
+        tail_lower_strike = strike_grid[tail_lower_idx]
+        tail_upper_strike = strike_grid[tail_upper_idx]
+        
+        # Create beautiful Plotly figure
+        fig = go.Figure()
+        
+        # Add main aggregated density curve
+        fig.add_trace(go.Scatter(
+            x=strike_grid,
+            y=aggregated_density,
+            mode='lines',
+            name='Aggregated Risk-Neutral Density',
+            line=dict(color='#1f77b4', width=4),
+            hovertemplate='Strike: $%{x:,.0f}<br>Aggregated Density: %{y:.6f}<extra></extra>'
+        ))
+        
+        # Add left tail (16% downside risk)
+        left_tail_mask = strike_grid <= tail_lower_strike
+        if np.any(left_tail_mask):
+            fig.add_trace(go.Scatter(
+                x=strike_grid[left_tail_mask],
+                y=aggregated_density[left_tail_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(255, 0, 0, 0.6)',
+                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                name='16% Left Tail (Downside Risk)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Downside<extra></extra>'
+            ))
+        
+        # Add right tail (16% upside risk)
+        right_tail_mask = strike_grid >= tail_upper_strike
+        if np.any(right_tail_mask):
+            fig.add_trace(go.Scatter(
+                x=strike_grid[right_tail_mask],
+                y=aggregated_density[right_tail_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(255, 0, 0, 0.6)',
+                line=dict(color='rgba(255, 0, 0, 0.8)', width=2),
+                name='16% Right Tail (Upside Risk)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Upside<extra></extra>'
+            ))
+        
+        # Add middle section (68% normal range)
+        middle_mask = (strike_grid > tail_lower_strike) & (strike_grid < tail_upper_strike)
+        if np.any(middle_mask):
+            fig.add_trace(go.Scatter(
+                x=strike_grid[middle_mask],
+                y=aggregated_density[middle_mask],
+                mode='lines',
+                fill='tonexty',
+                fillcolor='rgba(0, 255, 0, 0.4)',
+                line=dict(color='rgba(0, 255, 0, 0.8)', width=2),
+                name='68% Middle (Normal Range)',
+                hovertemplate='Strike: $%{x:,.0f}<br>Density: %{y:.6f}<br>Risk Zone: Normal<extra></extra>'
+            ))
+        
+        # Add current price line
+        price_density = np.interp(current_price, strike_grid, aggregated_density)
+        fig.add_vline(
+            x=current_price,
+            line=dict(color='#2E86AB', width=4, dash='dash'),
+            annotation_text=f'Current Price: ${current_price:,.2f}',
+            annotation_position="top right"
+        )
+        
+        # Add tail boundary lines
+        fig.add_vline(
+            x=tail_lower_strike,
+            line=dict(color='red', width=2, dash='dot'),
+            annotation_text=f'16% Tail: ${tail_lower_strike:,.0f}',
+            annotation_position="bottom"
+        )
+        
+        fig.add_vline(
+            x=tail_upper_strike,
+            line=dict(color='red', width=2, dash='dot'),
+            annotation_text=f'84% Tail: ${tail_upper_strike:,.0f}',
+            annotation_position="bottom"
+        )
+        
+        # Add current price point
+        fig.add_trace(go.Scatter(
+            x=[current_price],
+            y=[price_density],
+            mode='markers',
+            marker=dict(color='#2E86AB', size=15, symbol='diamond'),
+            name=f'Current Price: ${current_price:,.2f}',
+            hovertemplate=f'Current Price: ${current_price:,.2f}<br>Aggregated Density: {price_density:.6f}<extra></extra>'
+        ))
+        
+        # Get all expirations for display
+        all_expirations = sorted(self.svi_model.implied_probabilities.keys())
+        
+        # Update layout for beautiful appearance
+        fig.update_layout(
+            title=dict(
+                text=f'<b>Aggregated Implied Probability Density Function</b><br><sub>All Expirations: {all_expirations[0]} to {all_expirations[-1]} days | Current Price: ${current_price:,.2f}</sub>',
+                x=0.5,
+                font=dict(size=20, color='#2c3e50')
+            ),
+            xaxis=dict(
+                title=dict(text='Strike Price ($)', font=dict(size=14, color='#2c3e50')),
+                tickfont=dict(size=12),
+                gridcolor='rgba(128,128,128,0.2)',
+                showgrid=True
+            ),
+            yaxis=dict(
+                title=dict(text='Aggregated Probability Density', font=dict(size=14, color='#2c3e50')),
+                tickfont=dict(size=12),
+                gridcolor='rgba(128,128,128,0.2)',
+                showgrid=True
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1200,
+            height=700,
+            margin=dict(l=50, r=50, t=120, b=50),
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor='rgba(255,255,255,0.9)',
+                bordercolor='rgba(0,0,0,0.2)',
+                borderwidth=1
+            ),
+            hovermode='x unified'
+        )
+        
+        # Add annotation box with key metrics
+        tail_risk_down = ((tail_lower_strike - current_price) / current_price * 100)
+        tail_risk_up = ((tail_upper_strike - current_price) / current_price * 100)
+        
+        fig.add_annotation(
+            x=0.02,
+            y=0.98,
+            xref='paper',
+            yref='paper',
+            text=f'<b>Aggregated Metrics:</b><br>'
+                 f'Current Price: ${current_price:,.2f}<br>'
+                 f'Aggregated Density: {price_density:.6f}<br>'
+                 f'Expirations: {all_expirations[0]}-{all_expirations[-1]} days<br>'
+                 f'<b>Tail Boundaries:</b><br>'
+                 f'Lower: ${tail_lower_strike:,.2f}<br>'
+                 f'Upper: ${tail_upper_strike:,.2f}<br>'
+                 f'<b>Aggregated Tail Risk:</b> {tail_risk_down:.1f}% to {tail_risk_up:.1f}%',
+            showarrow=False,
+            align='left',
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='rgba(0,0,0,0.3)',
+            borderwidth=1,
+            font=dict(size=11, color='#2c3e50')
+        )
+        
+        if save_path:
+            fig.write_html(save_path)
         
         return fig
 
