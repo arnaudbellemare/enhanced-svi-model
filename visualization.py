@@ -503,22 +503,101 @@ class SVIVisualizer:
             interp_probs = np.interp(all_strikes, strikes, call_probs)
             prob_matrix.append(interp_probs)
         
-        # Create interactive heatmap
+        # Get current price for reference
+        current_price = self.svi_model.market_data['spot_price'].iloc[0]
+        
+        # Create interactive heatmap with sentiment colors
         fig = go.Figure(data=go.Heatmap(
             z=prob_matrix,
             x=all_strikes,
             y=expirations,
-            colorscale='Viridis',
+            colorscale='RdYlGn',  # Red-Yellow-Green for sentiment
             hoverongaps=False,
-            hovertemplate='Strike: %{x}<br>Expiration: %{y} days<br>Probability: %{z:.3f}<extra></extra>'
+            hovertemplate='Strike: $%{x:,.0f}<br>Days: %{y}<br>Call Prob: %{z:.3f}<br>Current: $%{current_price:,.0f}<extra></extra>'.format(current_price=current_price),
+            colorbar=dict(
+                title="Call Probability<br>(Market Sentiment)",
+                titleside="right",
+                tickmode="array",
+                tickvals=[0, 0.25, 0.5, 0.75, 1.0],
+                ticktext=["0%", "25%", "50%", "75%", "100%"]
+            )
         ))
         
+        # Add current price line
+        fig.add_vline(
+            x=current_price,
+            line=dict(color='blue', width=3, dash='dash'),
+            annotation_text=f'Current Price: ${current_price:,.0f}',
+            annotation_position="top"
+        )
+        
+        # Add sentiment zones
+        fig.add_vrect(
+            x0=current_price * 0.95,
+            x1=current_price * 1.05,
+            fillcolor="yellow",
+            opacity=0.1,
+            line_width=0,
+            annotation_text="ATM Zone",
+            annotation_position="top left"
+        )
+        
+        fig.add_vrect(
+            x0=all_strikes[0] if all_strikes else current_price * 0.8,
+            x1=current_price * 0.95,
+            fillcolor="green",
+            opacity=0.1,
+            line_width=0,
+            annotation_text="Bullish Zone<br>(High Call Prob)",
+            annotation_position="top left"
+        )
+        
+        fig.add_vrect(
+            x0=current_price * 1.05,
+            x1=all_strikes[-1] if all_strikes else current_price * 1.2,
+            fillcolor="red",
+            opacity=0.1,
+            line_width=0,
+            annotation_text="Bearish Zone<br>(Low Call Prob)",
+            annotation_position="top left"
+        )
+        
+        # Add market sentiment analysis
+        fig.add_annotation(
+            x=0.02,
+            y=0.98,
+            xref='paper',
+            yref='paper',
+            text=f'<b>📊 MARKET SENTIMENT ANALYSIS</b><br>'
+                 f'💰 Current Price: <b>${current_price:,.0f}</b><br>'
+                 f'🟢 <b>Green Zone:</b> Bullish sentiment (high call prob)<br>'
+                 f'🟡 <b>Yellow Zone:</b> Neutral/ATM area<br>'
+                 f'🔴 <b>Red Zone:</b> Bearish sentiment (low call prob)<br>'
+                 f'<br><b>💡 How to Read:</b><br>'
+                 f'• Bright green = Strong bullish conviction<br>'
+                 f'• Dark red = Strong bearish conviction<br>'
+                 f'• Yellow = Market uncertainty/ATM',
+            showarrow=False,
+            align='left',
+            bgcolor='rgba(248, 250, 252, 0.95)',
+            bordercolor='rgba(59, 130, 246, 0.3)',
+            borderwidth=2,
+            font=dict(size=11, color='#1e293b'),
+            xanchor='left',
+            yanchor='top'
+        )
+        
         fig.update_layout(
-            title='Interactive Probability Heatmap',
-            xaxis_title='Strike Price',
+            title=dict(
+                text=f'<b>Market Sentiment Heatmap</b><br><sub>Call Probabilities Show Market Positioning | Current Price: ${current_price:,.0f}</sub>',
+                x=0.5,
+                font=dict(size=16)
+            ),
+            xaxis_title='Strike Price ($)',
             yaxis_title='Days to Expiration',
-            width=800,
-            height=600
+            width=1200,
+            height=800,
+            margin=dict(l=50, r=50, t=100, b=50)
         )
         
         if save_path:
