@@ -188,7 +188,7 @@ def show_quick_demo():
                 calc = ProbabilityCalculator()
                 
                 # Load data
-                svi.load_market_data('synthetic_data')
+                svi.load_market_data('crypto_data')
                 
                 # Calculate probabilities
                 probabilities = svi.calculate_implied_probabilities()
@@ -241,7 +241,7 @@ def show_basic_analysis():
         with st.spinner("Running basic analysis..."):
             try:
                 svi = SVIEnhanced()
-                svi.load_market_data('synthetic_data')
+                svi.load_market_data('crypto_data')
                 probabilities = svi.calculate_implied_probabilities()
                 
                 st.session_state.svi_model = svi
@@ -307,7 +307,7 @@ def show_advanced_analysis():
         with st.spinner("Running advanced analysis..."):
             try:
                 svi = SVIEnhanced()
-                svi.load_market_data('synthetic_data')
+                svi.load_market_data('crypto_data')
                 svi.calculate_implied_probabilities()
                 risk_metrics = svi.get_risk_metrics()
                 

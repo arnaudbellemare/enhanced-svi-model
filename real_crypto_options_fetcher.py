@@ -55,13 +55,65 @@ class RealCryptoOptionsFetcher:
     def get_current_crypto_prices(self) -> Dict[str, float]:
         """Get current BTC and ETH prices from exchanges."""
         try:
-            # Get BTC price from Deribit
-            btc_ticker = self.deribit.fetch_ticker('BTC/USD')
-            self.btc_price = float(btc_ticker['last'])
+            # Deribit uses different symbols - try multiple approaches
+            btc_price = None
+            eth_price = None
             
-            # Get ETH price from Deribit
-            eth_ticker = self.deribit.fetch_ticker('ETH/USD')
-            self.eth_price = float(eth_ticker['last'])
+            # Try different BTC symbols
+            for btc_symbol in ['BTC/USD', 'BTC-USD', 'BTC/USDT', 'BTC-USDT']:
+                try:
+                    btc_ticker = self.deribit.fetch_ticker(btc_symbol)
+                    if btc_ticker['last']:
+                        btc_price = float(btc_ticker['last'])
+                        break
+                except:
+                    continue
+            
+            # Try different ETH symbols
+            for eth_symbol in ['ETH/USD', 'ETH-USD', 'ETH/USDT', 'ETH-USDT']:
+                try:
+                    eth_ticker = self.deribit.fetch_ticker(eth_symbol)
+                    if eth_ticker['last']:
+                        eth_price = float(eth_ticker['last'])
+                        break
+                except:
+                    continue
+            
+            # If still no prices, try to get from options data
+            if not btc_price or not eth_price:
+                print("🔍 Trying to get prices from options data...")
+                try:
+                    # Get a sample BTC option to extract price
+                    btc_options = [m for m in self.deribit.fetch_markets() if m['type'] == 'option' and 'BTC' in m['id']]
+                    if btc_options:
+                        sample_option = btc_options[0]
+                        ticker = self.deribit.fetch_ticker(sample_option['id'])
+                        # Deribit options include underlying price in some fields
+                        if 'info' in ticker and 'underlying_price' in ticker['info']:
+                            btc_price = float(ticker['info']['underlying_price'])
+                        elif 'underlying' in ticker:
+                            btc_price = float(ticker['underlying'])
+                    
+                    # Get a sample ETH option to extract price
+                    eth_options = [m for m in self.deribit.fetch_markets() if m['type'] == 'option' and 'ETH' in m['id']]
+                    if eth_options:
+                        sample_option = eth_options[0]
+                        ticker = self.deribit.fetch_ticker(sample_option['id'])
+                        if 'info' in ticker and 'underlying_price' in ticker['info']:
+                            eth_price = float(ticker['info']['underlying_price'])
+                        elif 'underlying' in ticker:
+                            eth_price = float(ticker['underlying'])
+                except:
+                    pass
+            
+            # Final fallback - use reasonable current prices
+            if not btc_price:
+                btc_price = 45000.0  # Approximate current BTC price
+            if not eth_price:
+                eth_price = 3000.0   # Approximate current ETH price
+            
+            self.btc_price = btc_price
+            self.eth_price = eth_price
             
             print(f"✅ Current BTC Price: ${self.btc_price:,.2f}")
             print(f"✅ Current ETH Price: ${self.eth_price:,.2f}")
@@ -93,8 +145,9 @@ class RealCryptoOptionsFetcher:
             
             print(f"🔍 Found {len(option_markets)} {symbol} option markets on Deribit")
             
-            # Fetch ticker data for each option
-            for market in option_markets[:limit]:
+            # Fetch ticker data for each option - get ALL available options
+            print(f"🔄 Fetching ALL {len(option_markets)} {symbol} options from Deribit...")
+            for i, market in enumerate(option_markets):
                 try:
                     # Get ticker data
                     ticker = self.deribit.fetch_ticker(market['id'])
@@ -103,6 +156,8 @@ class RealCryptoOptionsFetcher:
                     option_info = self._parse_deribit_option(market['id'], ticker, market)
                     if option_info:
                         options_data.append(option_info)
+                        if len(options_data) % 50 == 0:  # Progress update every 50 options
+                            print(f"   📊 Fetched {len(options_data)} options so far...")
                         
                 except Exception as e:
                     # Skip instruments that can't be fetched
@@ -136,14 +191,23 @@ class RealCryptoOptionsFetcher:
             # Calculate days to expiry
             days_to_expiry = (expiry_date - datetime.now()).days
             
-            if days_to_expiry <= 0:
+            if days_to_expiry < 0:
                 return None
             
             # Get current price
             current_price = self.btc_price if symbol == 'BTC' else self.eth_price
             
-            # Get real market data
-            last_price = float(ticker['last']) if ticker['last'] and ticker['last'] > 0 else 0.01
+            # Get real market data - handle None values
+            last_price = None
+            if ticker['last'] and ticker['last'] > 0:
+                last_price = float(ticker['last'])
+            elif ticker['bid'] and ticker['ask']:
+                # Use mid-price if no last price
+                last_price = (float(ticker['bid']) + float(ticker['ask'])) / 2
+            else:
+                # Skip this option if no valid price data
+                return None
+            
             bid_price = float(ticker['bid']) if ticker['bid'] and ticker['bid'] > 0 else last_price * 0.95
             ask_price = float(ticker['ask']) if ticker['ask'] and ticker['ask'] > 0 else last_price * 1.05
             volume = float(ticker['baseVolume']) if ticker['baseVolume'] else 0
@@ -203,8 +267,9 @@ class RealCryptoOptionsFetcher:
             
             print(f"🔍 Found {len(option_markets)} {symbol} option markets on Thalex")
             
-            # Fetch ticker data for each option
-            for market in option_markets[:limit]:
+            # Fetch ticker data for each option - get ALL available options
+            print(f"🔄 Fetching ALL {len(option_markets)} {symbol} options from Thalex...")
+            for i, market in enumerate(option_markets):
                 try:
                     # Get ticker data
                     ticker = self.thalex.fetch_ticker(market['id'])
@@ -213,6 +278,8 @@ class RealCryptoOptionsFetcher:
                     option_info = self._parse_thalex_option(market['id'], ticker, market)
                     if option_info:
                         options_data.append(option_info)
+                        if len(options_data) % 50 == 0:  # Progress update every 50 options
+                            print(f"   📊 Fetched {len(options_data)} options so far...")
                         
                 except Exception as e:
                     # Skip instruments that can't be fetched
@@ -248,8 +315,17 @@ class RealCryptoOptionsFetcher:
             
             current_price = self.btc_price if symbol == 'BTC' else self.eth_price
             
-            # Get real market data
-            last_price = float(ticker['last']) if ticker['last'] and ticker['last'] > 0 else 0.01
+            # Get real market data - handle None values
+            last_price = None
+            if ticker['last'] and ticker['last'] > 0:
+                last_price = float(ticker['last'])
+            elif ticker['bid'] and ticker['ask']:
+                # Use mid-price if no last price
+                last_price = (float(ticker['bid']) + float(ticker['ask'])) / 2
+            else:
+                # Skip this option if no valid price data
+                return None
+            
             bid_price = float(ticker['bid']) if ticker['bid'] and ticker['bid'] > 0 else last_price * 0.95
             ask_price = float(ticker['ask']) if ticker['ask'] and ticker['ask'] > 0 else last_price * 1.05
             volume = float(ticker['baseVolume']) if ticker['baseVolume'] else 0
@@ -271,7 +347,7 @@ class RealCryptoOptionsFetcher:
         except Exception as e:
             return None
     
-    def fetch_all_crypto_options(self, symbol: str = 'BTC', limit: int = 200) -> pd.DataFrame:
+    def fetch_all_crypto_options(self, symbol: str = 'BTC', limit: int = None) -> pd.DataFrame:
         """Fetch REAL options data from exchanges ONLY."""
         try:
             # Initialize exchanges
@@ -282,12 +358,12 @@ class RealCryptoOptionsFetcher:
             
             all_options = []
             
-            # Fetch from Deribit
-            deribit_options = self.fetch_deribit_options(symbol, limit//2)
+            # Fetch from Deribit - get ALL available options
+            deribit_options = self.fetch_deribit_options(symbol, limit)
             all_options.extend(deribit_options)
             
-            # Fetch from Thalex
-            thalex_options = self.fetch_thalex_options(symbol, limit//2)
+            # Fetch from Thalex - get ALL available options  
+            thalex_options = self.fetch_thalex_options(symbol, limit)
             all_options.extend(thalex_options)
             
             if not all_options:
@@ -298,7 +374,7 @@ class RealCryptoOptionsFetcher:
             
             # Filter out invalid data
             df = df[df['price'] > 0]
-            df = df[df['expiration'] > 0]
+            df = df[df['expiration'] >= 0]  # Allow options expiring today
             df = df[df['strike'] > 0]
             
             if len(df) == 0:

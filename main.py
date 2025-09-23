@@ -59,7 +59,7 @@ def quick_demo():
         calc = ProbabilityCalculator()
         
         print("✓ Loading market data...")
-        svi.load_market_data('synthetic_data')
+        svi.load_market_data('crypto_data')
         
         print("✓ Calculating implied probabilities...")
         svi.calculate_implied_probabilities()
@@ -91,7 +91,7 @@ def basic_analysis():
         from svi_enhanced import SVIEnhanced
         
         svi = SVIEnhanced()
-        svi.load_market_data('synthetic_data')
+        svi.load_market_data('crypto_data')
         
         print("Calculating implied probabilities...")
         probabilities = svi.calculate_implied_probabilities()
@@ -124,7 +124,7 @@ def advanced_analysis():
         svi = SVIEnhanced()
         calc = ProbabilityCalculator()
         
-        svi.load_market_data('synthetic_data')
+        svi.load_market_data('crypto_data')
         svi.calculate_implied_probabilities()
         
         print("Calculating detailed risk metrics...")
@@ -161,7 +161,7 @@ def visualization_mode():
         from visualization import SVIVisualizer
         
         svi = SVIEnhanced()
-        svi.load_market_data('synthetic_data')
+        svi.load_market_data('crypto_data')
         svi.calculate_implied_probabilities()
         
         visualizer = SVIVisualizer(svi)
@@ -316,7 +316,7 @@ def export_mode():
         from svi_enhanced import SVIEnhanced
         
         svi = SVIEnhanced()
-        svi.load_market_data('synthetic_data')
+        svi.load_market_data('crypto_data')
         svi.calculate_implied_probabilities()
         
         print("Export options:")

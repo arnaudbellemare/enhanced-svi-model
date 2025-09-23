@@ -79,7 +79,7 @@ def demonstrate_basic_usage():
     
     # Load market data
     print("Loading market data...")
-    svi.load_market_data('synthetic_data')  # This will generate synthetic data
+    svi.load_market_data('crypto_data')  # This will generate synthetic data
     
     # Calculate implied probabilities for all expirations
     print("Calculating implied probabilities...")

@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""
+Debug Parsing Logic
+Debug the option parsing logic
+"""
+
+import ccxt
+from datetime import datetime
+
+def debug_parsing():
+    """Debug option parsing logic."""
+    print("🔍 Debugging Option Parsing Logic")
+    print("=" * 50)
+    
+    try:
+        # Initialize Deribit
+        deribit = ccxt.deribit({
+            'apiKey': '',
+            'secret': '',
+            'enableRateLimit': True,
+        })
+        
+        # Get markets
+        markets = deribit.fetch_markets()
+        btc_options = [m for m in markets if m['type'] == 'option' and 'BTC' in m['id']]
+        
+        print(f"Found {len(btc_options)} BTC options")
+        
+        # Test parsing logic
+        for i, option in enumerate(btc_options[:10]):
+            print(f"\n🔍 Testing option {i+1}: {option['id']}")
+            
+            try:
+                # Parse option ID
+                parts = option['id'].split('-')
+                print(f"   Parts: {parts}")
+                
+                if len(parts) >= 4:
+                    symbol = parts[0]
+                    expiry_str = parts[1]
+                    strike = float(parts[2])
+                    option_type = parts[3]
+                    
+                    print(f"   Symbol: {symbol}")
+                    print(f"   Expiry: {expiry_str}")
+                    print(f"   Strike: {strike}")
+                    print(f"   Type: {option_type}")
+                    
+                    # Test expiry parsing
+                    expiry_date = parse_deribit_expiry(expiry_str)
+                    if expiry_date:
+                        days_to_expiry = (expiry_date - datetime.now()).days
+                        print(f"   ✅ Expiry date: {expiry_date}")
+                        print(f"   ✅ Days to expiry: {days_to_expiry}")
+                        
+                        if days_to_expiry > 0:
+                            print(f"   ✅ Option would be included")
+                        else:
+                            print(f"   ❌ Option expired")
+                    else:
+                        print(f"   ❌ Could not parse expiry")
+                else:
+                    print(f"   ❌ Invalid option format")
+                    
+            except Exception as e:
+                print(f"   ❌ Error parsing: {e}")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+def parse_deribit_expiry(expiry_str: str):
+    """Parse Deribit expiry string to datetime."""
+    try:
+        # Format: 24SEP25 -> 2025-09-24
+        day = int(expiry_str[:2])
+        month_str = expiry_str[2:5]
+        year = 2000 + int(expiry_str[5:])
+        
+        month_map = {
+            'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+        }
+        
+        month = month_map.get(month_str)
+        if not month:
+            return None
+        
+        return datetime(year, month, day)
+        
+    except Exception as e:
+        return None
+
+if __name__ == "__main__":
+    debug_parsing()
