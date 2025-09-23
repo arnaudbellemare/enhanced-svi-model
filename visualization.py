@@ -229,7 +229,7 @@ class SVIVisualizer:
         ax1.set_xlabel('Strike Price')
         ax1.set_ylabel('Probability')
         ax1.set_title('Probability Curves by Expiration')
-        ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
         ax1.grid(True, alpha=0.3)
         
         # Plot 2: Risk-neutral density
@@ -242,10 +242,11 @@ class SVIVisualizer:
                     color=self.colors[i], linewidth=2)
         
         ax2.set_xlabel('Strike Price')
-        ax2.set_ylabel('Risk-Neutral Density')
+        ax2.set_ylabel('')  # Remove y-axis title
         ax2.set_title('Risk-Neutral Density by Expiration')
-        ax2.legend()
+        ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
         ax2.grid(True, alpha=0.3)
+        ax2.set_yticklabels([])  # Remove y-axis numbers
         
         # Plot 3: Implied Volatility Analysis (FIXED)
         implied_vols = []
@@ -328,10 +329,10 @@ class SVIVisualizer:
                          alpha=0.2, color='red', label='High Volatility Zone')
         
         ax3.set_xlabel('Days to Expiration')
-        ax3.set_ylabel('Volatility (%)')
+        ax3.set_ylabel('')  # Remove y-axis title
         ax3.set_title('Implied Volatility Analysis\nFrom Probability Curves & Risk-Neutral Density')
-        ax3.legend()
         ax3.grid(True, alpha=0.3)
+        ax3.set_yticklabels([])  # Remove y-axis numbers
         
         # Add comprehensive analysis text
         avg_implied_vol = np.mean(implied_vols) if implied_vols else 0
@@ -339,40 +340,19 @@ class SVIVisualizer:
         avg_risk_vol = np.mean(risk_metrics) if risk_metrics else 0
         max_risk_vol = np.max(risk_metrics) if risk_metrics else 0
         
-        analysis_text = f"""
-📊 IMPLIED VOLATILITY ANALYSIS
-
-💰 Current Price: ${current_price:,.0f}
-📈 Average Implied Vol: {avg_implied_vol:.1f}%
-📊 Max Implied Vol: {max_implied_vol:.1f}%
-📉 Average Risk-Neutral Vol: {avg_risk_vol:.1f}%
-📊 Max Risk-Neutral Vol: {max_risk_vol:.1f}%
-🎯 Calculated Threshold: {volatility_threshold:.1f}% (Mean + 1σ)
-
-💡 KEY INSIGHTS:
-• Blue line: Implied volatility from probability curves
-• Red line: Risk-neutral density volatility
-• {volatility_threshold:.1f}% threshold calculated from data
-• Higher % = More volatile/uncertain market
-• Lower % = More stable/confident market
-
-🔍 INTERPRETATION:
-• Green zone (0-{volatility_threshold:.1f}%): Normal market volatility
-• Red zone (>{volatility_threshold:.1f}%): High volatility/uncertainty
-• Implied Vol: Market's expectation of future volatility
-• Risk-Neutral Vol: Actual probability distribution width
-• Threshold based on statistical analysis of data
-        """
+        analysis_text = f"""📊 VOLATILITY ANALYSIS
+💰 Price: ${current_price:,.0f} | Avg IV: {avg_implied_vol:.1f}% | Avg RN: {avg_risk_vol:.1f}% | Threshold: {volatility_threshold:.1f}%
+🔵 Blue: Implied Vol (market expectation) | 🔴 Red: Risk-Neutral Vol (actual distribution) | 🟢 Green: Normal | 🔴 Red: High Vol"""
         
-        # Add text box with analysis - positioned to not overlap charts
-        fig.text(0.02, 0.02, analysis_text, fontsize=8, 
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.9),
+        # Add concise text box at bottom with proper spacing
+        fig.text(0.02, 0.02, analysis_text, fontsize=9, 
+                bbox=dict(boxstyle="round,pad=0.4", facecolor="lightblue", alpha=0.9),
                 verticalalignment='bottom', horizontalalignment='left',
                 transform=fig.transFigure)
         
-        # Adjust layout to prevent overlap - more space for text
+        # Adjust layout for maximum readability - no overlapping elements
         plt.tight_layout()
-        plt.subplots_adjust(top=0.9, bottom=0.25, left=0.1, right=0.95)
+        plt.subplots_adjust(top=0.9, bottom=0.2, left=0.08, right=0.95, wspace=0.3)
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
