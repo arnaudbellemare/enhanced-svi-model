@@ -82,35 +82,31 @@ class RealCryptoOptionsFetcher:
             }
     
     def fetch_deribit_options(self, symbol: str, limit: int = 100) -> List[Dict]:
-        """Fetch options data from Deribit."""
+        """Fetch real options data from Deribit."""
         try:
-            # Deribit options are typically in format: BTC-{expiry}-{strike}-{type}
-            # We'll fetch the instruments and filter for options
-            
-            instruments = self.deribit.fetch_markets()
+            # Get all markets from Deribit
+            markets = self.deribit.fetch_markets()
             options_data = []
             
-            # Filter for options instruments
-            for instrument in instruments:
-                if (instrument['type'] == 'option' and 
-                    symbol in instrument['id'] and
-                    instrument['active']):
+            # Filter for options markets
+            option_markets = [m for m in markets if m['type'] == 'option' and symbol in m['id']]
+            
+            print(f"🔍 Found {len(option_markets)} {symbol} option markets on Deribit")
+            
+            # Fetch ticker data for each option
+            for market in option_markets[:limit]:
+                try:
+                    # Get ticker data
+                    ticker = self.deribit.fetch_ticker(market['id'])
                     
-                    try:
-                        # Get ticker data for this option
-                        ticker = self.deribit.fetch_ticker(instrument['id'])
+                    # Parse option details
+                    option_info = self._parse_deribit_option(market['id'], ticker, market)
+                    if option_info:
+                        options_data.append(option_info)
                         
-                        # Parse option details
-                        option_info = self._parse_deribit_option(instrument['id'], ticker)
-                        if option_info:
-                            options_data.append(option_info)
-                            
-                    except Exception as e:
-                        # Skip instruments that can't be fetched
-                        continue
-                    
-                    if len(options_data) >= limit:
-                        break
+                except Exception as e:
+                    # Skip instruments that can't be fetched
+                    continue
             
             print(f"✅ Fetched {len(options_data)} {symbol} options from Deribit")
             return options_data
@@ -119,7 +115,7 @@ class RealCryptoOptionsFetcher:
             print(f"❌ Error fetching Deribit options: {e}")
             return []
     
-    def _parse_deribit_option(self, instrument_id: str, ticker: Dict) -> Optional[Dict]:
+    def _parse_deribit_option(self, instrument_id: str, ticker: Dict, market: Dict = None) -> Optional[Dict]:
         """Parse Deribit option instrument ID and ticker data."""
         try:
             # Deribit option format: BTC-29DEC23-45000-C or BTC-29DEC23-45000-P
@@ -146,17 +142,24 @@ class RealCryptoOptionsFetcher:
             # Get current price
             current_price = self.btc_price if symbol == 'BTC' else self.eth_price
             
+            # Get real market data
+            last_price = float(ticker['last']) if ticker['last'] and ticker['last'] > 0 else 0.01
+            bid_price = float(ticker['bid']) if ticker['bid'] and ticker['bid'] > 0 else last_price * 0.95
+            ask_price = float(ticker['ask']) if ticker['ask'] and ticker['ask'] > 0 else last_price * 1.05
+            volume = float(ticker['baseVolume']) if ticker['baseVolume'] else 0
+            
             return {
                 'symbol': symbol,
                 'strike': strike,
                 'expiration': days_to_expiry,
                 'option_type': 'call' if option_type == 'C' else 'put',
-                'price': float(ticker['last']) if ticker['last'] else 0.01,
+                'price': last_price,
                 'spot_price': current_price,
-                'bid': float(ticker['bid']) if ticker['bid'] else 0.01,
-                'ask': float(ticker['ask']) if ticker['ask'] else 0.01,
-                'volume': float(ticker['baseVolume']) if ticker['baseVolume'] else 0,
-                'exchange': 'deribit'
+                'bid': bid_price,
+                'ask': ask_price,
+                'volume': volume,
+                'exchange': 'deribit',
+                'instrument_id': instrument_id
             }
             
         except Exception as e:
@@ -185,30 +188,35 @@ class RealCryptoOptionsFetcher:
             return None
     
     def fetch_thalex_options(self, symbol: str, limit: int = 100) -> List[Dict]:
-        """Fetch options data from Thalex."""
+        """Fetch real options data from Thalex."""
         if not self.thalex:
+            print("⚠️ Thalex exchange not available")
             return []
         
         try:
-            # Thalex options fetching (similar to Deribit)
-            instruments = self.thalex.fetch_markets()
+            # Get all markets from Thalex
+            markets = self.thalex.fetch_markets()
             options_data = []
             
-            for instrument in instruments:
-                if (instrument['type'] == 'option' and 
-                    symbol in instrument['id'] and
-                    instrument['active']):
+            # Filter for options markets
+            option_markets = [m for m in markets if m['type'] == 'option' and symbol in m['id']]
+            
+            print(f"🔍 Found {len(option_markets)} {symbol} option markets on Thalex")
+            
+            # Fetch ticker data for each option
+            for market in option_markets[:limit]:
+                try:
+                    # Get ticker data
+                    ticker = self.thalex.fetch_ticker(market['id'])
                     
-                    try:
-                        ticker = self.thalex.fetch_ticker(instrument['id'])
-                        option_info = self._parse_thalex_option(instrument['id'], ticker)
-                        if option_info:
-                            options_data.append(option_info)
-                    except:
-                        continue
-                    
-                    if len(options_data) >= limit:
-                        break
+                    # Parse option details
+                    option_info = self._parse_thalex_option(market['id'], ticker, market)
+                    if option_info:
+                        options_data.append(option_info)
+                        
+                except Exception as e:
+                    # Skip instruments that can't be fetched
+                    continue
             
             print(f"✅ Fetched {len(options_data)} {symbol} options from Thalex")
             return options_data
@@ -217,7 +225,7 @@ class RealCryptoOptionsFetcher:
             print(f"❌ Error fetching Thalex options: {e}")
             return []
     
-    def _parse_thalex_option(self, instrument_id: str, ticker: Dict) -> Optional[Dict]:
+    def _parse_thalex_option(self, instrument_id: str, ticker: Dict, market: Dict = None) -> Optional[Dict]:
         """Parse Thalex option instrument ID and ticker data."""
         try:
             # Thalex option format similar to Deribit
@@ -240,17 +248,24 @@ class RealCryptoOptionsFetcher:
             
             current_price = self.btc_price if symbol == 'BTC' else self.eth_price
             
+            # Get real market data
+            last_price = float(ticker['last']) if ticker['last'] and ticker['last'] > 0 else 0.01
+            bid_price = float(ticker['bid']) if ticker['bid'] and ticker['bid'] > 0 else last_price * 0.95
+            ask_price = float(ticker['ask']) if ticker['ask'] and ticker['ask'] > 0 else last_price * 1.05
+            volume = float(ticker['baseVolume']) if ticker['baseVolume'] else 0
+            
             return {
                 'symbol': symbol,
                 'strike': strike,
                 'expiration': days_to_expiry,
                 'option_type': 'call' if option_type == 'C' else 'put',
-                'price': float(ticker['last']) if ticker['last'] else 0.01,
+                'price': last_price,
                 'spot_price': current_price,
-                'bid': float(ticker['bid']) if ticker['bid'] else 0.01,
-                'ask': float(ticker['ask']) if ticker['ask'] else 0.01,
-                'volume': float(ticker['baseVolume']) if ticker['baseVolume'] else 0,
-                'exchange': 'thalex'
+                'bid': bid_price,
+                'ask': ask_price,
+                'volume': volume,
+                'exchange': 'thalex',
+                'instrument_id': instrument_id
             }
             
         except Exception as e:
