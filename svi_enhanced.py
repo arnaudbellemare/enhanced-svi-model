@@ -100,15 +100,76 @@ class SVIEnhanced:
             
         return max(price, 0.01)  # Ensure positive price
     
+    def check_svi_butterfly_arbitrage_gk(self, k_val: float, svi_params: Dict, T_expiry: float) -> float:
+        """
+        Calculates g(k) from Gatheral's paper (Lemma 2.4) for a raw SVI slice
+        using manual finite differences for derivatives.
+        If g(k) < 0, there is butterfly arbitrage.
+        
+        Args:
+            k_val: log-moneyness log(K/F)
+            svi_params: dictionary {a, b, rho, m, sigma}
+            T_expiry: time to expiry in years
+            
+        Returns:
+            g(k) value - negative indicates butterfly arbitrage
+        """
+        def svi_total_variance(k):
+            """SVI total variance function."""
+            a, b, rho, m, sigma = svi_params['a'], svi_params['b'], svi_params['rho'], svi_params['m'], svi_params['sigma']
+            return a + b * (rho * (k - m) + np.sqrt((k - m)**2 + sigma**2))
+        
+        try:
+            w_k = svi_total_variance(k_val)
+            if w_k <= 1e-9:  # Total variance must be positive
+                return -1e9 
+            
+            eps = 1e-5  # Small step for numerical differentiation
+            
+            w_k_plus_eps = svi_total_variance(k_val + eps)
+            w_k_minus_eps = svi_total_variance(k_val - eps)
+            
+            # First derivative: w'(k)
+            dw_dk = (w_k_plus_eps - w_k_minus_eps) / (2 * eps)
+            
+            # Second derivative: w''(k)
+            d2w_dk2 = (w_k_plus_eps - 2 * w_k + w_k_minus_eps) / (eps**2)
+            
+        except Exception as e:
+            print(f"Error in numerical differentiation for g(k) (k={k_val}): {e}")
+            return -1e9
+        
+        # Gatheral's g(k) formula from Lemma 2.4:
+        # g(k) = (1 - k * w'(k) / (2*w(k)) )^2 - (w'(k)/2)^2 * (1/w(k) + 1/4) + w''(k)/2
+        
+        term1_denom = 2 * w_k
+        if abs(term1_denom) < 1e-9:
+            return -1e9 
+            
+        term1_num_factor = k_val * dw_dk / term1_denom
+        term1 = (1 - term1_num_factor)**2
+        
+        term2_factor = (dw_dk / 2)**2
+        term2_bracket_denom = w_k
+        if abs(term2_bracket_denom) < 1e-9:
+            return -1e9
+        term2_bracket = (1 / term2_bracket_denom) + 0.25
+        term2 = term2_factor * term2_bracket
+        
+        term3 = d2w_dk2 / 2.0
+        
+        g_k = term1 - term2 + term3
+        return g_k
+
     def fit_svi_parameters(self, expiration: int) -> Dict:
         """
-        Fit SVI parameters for a specific expiration.
+        Fit SVI parameters for a specific expiration with butterfly arbitrage checking.
         
         Args:
             expiration: Days to expiration
             
         Returns:
-            Dictionary of SVI parameters
+            Dictionary of SVI parameters with arbitrage checking
         """
         # Filter data for specific expiration
         exp_data = self.market_data[self.market_data['expiration'] == expiration].copy()
@@ -136,11 +197,23 @@ class SVIEnhanced:
             if sigma <= 0 or abs(rho) >= 1:
                 return 1e10
             
+            # Roger Lee wing condition: b(1+|ρ|)T < 4
+            if b * (1 + abs(rho)) * (expiration/365) > 4.0:
+                return 1e10
+            
             k = exp_data['log_moneyness'].values
             vol_squared = exp_data['implied_vol'].values**2
             
             predicted = svi_function(k, a, b, rho, m, sigma)
-            return np.sum((predicted - vol_squared)**2)
+            error = np.sum((predicted - vol_squared)**2)
+            
+            # Penalty for butterfly arbitrage using g(k) at ATM (k=0)
+            svi_params = {'a': a, 'b': b, 'rho': rho, 'm': m, 'sigma': sigma}
+            g_atm = self.check_svi_butterfly_arbitrage_gk(0.0, svi_params, expiration/365)
+            if g_atm < -1e-5:  # Negative g(k) implies arbitrage
+                error += 1e6 * abs(g_atm)
+            
+            return error
         
         # Initial parameter guess
         initial_params = [0.01, 0.1, 0.0, 0.0, 0.1]
@@ -159,11 +232,18 @@ class SVIEnhanced:
             
             if result.success:
                 a, b, rho, m, sigma = result.x
-                return {
+                svi_params = {
                     'a': a, 'b': b, 'rho': rho, 'm': m, 'sigma': sigma,
                     'expiration': expiration,
                     'convergence': True
                 }
+                
+                # Check for butterfly arbitrage
+                g_atm = self.check_svi_butterfly_arbitrage_gk(0.0, svi_params, expiration/365)
+                svi_params['butterfly_arbitrage'] = g_atm < -1e-5
+                svi_params['g_atm'] = g_atm
+                
+                return svi_params
             else:
                 return None
                 
