@@ -675,6 +675,56 @@ def show_visualizations():
                     
                 except Exception as e:
                     st.error(f"❌ Error creating comparison: {e}")
+    
+    # Add range-specific visualization section
+    st.markdown("### 📅 Range-Specific Analysis")
+    
+    col7, col8, col9 = st.columns(3)
+    
+    with col7:
+        if st.button("📊 1-30 Days Range", type="primary"):
+            with st.spinner("Creating 1-30 days range analysis..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(1, 30, 'streamlit_range_1_30.html')
+                    st.success("✅ 1-30 days range analysis created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive 1-30 days range also saved as 'streamlit_range_1_30.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating 1-30 days range: {e}")
+    
+    with col8:
+        if st.button("📊 1-60 Days Range", type="primary"):
+            with st.spinner("Creating 1-60 days range analysis..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(1, 60, 'streamlit_range_1_60.html')
+                    st.success("✅ 1-60 days range analysis created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive 1-60 days range also saved as 'streamlit_range_1_60.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating 1-60 days range: {e}")
+    
+    with col9:
+        if st.button("📊 1-90 Days Range", type="primary"):
+            with st.spinner("Creating 1-90 days range analysis..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(1, 90, 'streamlit_range_1_90.html')
+                    st.success("✅ 1-90 days range analysis created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive 1-90 days range also saved as 'streamlit_range_1_90.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating 1-90 days range: {e}")
 
 def show_export_data():
     """Display the export data page."""
