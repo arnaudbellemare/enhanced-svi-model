@@ -845,6 +845,15 @@ class SVIVisualizer:
             annotation_position="top right"
         )
         
+        # Add 50% median line (light gray)
+        median_strike = np.interp(0.5, cumulative_density, strikes)
+        fig.add_vline(
+            x=median_strike,
+            line=dict(color='lightgray', width=2, dash='dot'),
+            annotation_text=f'50% Median: ${median_strike:,.2f}',
+            annotation_position="top left"
+        )
+        
         # Add tail boundary lines
         fig.add_vline(
             x=tail_lower_strike,
@@ -1071,6 +1080,15 @@ class SVIVisualizer:
             line=dict(color='#2E86AB', width=4, dash='dash'),
             annotation_text=f'Current Price: ${current_price:,.2f}',
             annotation_position="top right"
+        )
+        
+        # Add 50% median line (light gray)
+        median_strike = np.interp(0.5, cumulative_density, strike_grid)
+        fig.add_vline(
+            x=median_strike,
+            line=dict(color='lightgray', width=2, dash='dot'),
+            annotation_text=f'50% Median: ${median_strike:,.2f}',
+            annotation_position="top left"
         )
         
         # Add tail boundary lines
