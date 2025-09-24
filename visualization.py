@@ -884,17 +884,17 @@ class SVIVisualizer:
             title=dict(
                 text=f'<b>Implied Probability Density Function</b><br><sub>{first_exp} Days to Expiration | Current Price: ${current_price:,.2f}</sub>',
                 x=0.5,
-                font=dict(size=20, color='#2c3e50')
+                font=dict(size=20, color='black')
             ),
             xaxis=dict(
-                title=dict(text='Strike Price ($)', font=dict(size=14, color='#2c3e50')),
-                tickfont=dict(size=12),
+                title=dict(text='Strike Price ($)', font=dict(size=14, color='black')),
+                tickfont=dict(size=12, color='black'),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
             yaxis=dict(
-                title=dict(text='Probability Density', font=dict(size=14, color='#2c3e50')),
-                tickfont=dict(size=12),
+                title=dict(text='Probability Density', font=dict(size=14, color='black')),
+                tickfont=dict(size=12, color='black'),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
@@ -912,7 +912,7 @@ class SVIVisualizer:
                 bgcolor='rgba(255,255,255,0.95)',
                 bordercolor='rgba(0,0,0,0.3)',
                 borderwidth=1,
-                font=dict(size=11)
+                font=dict(size=11, color='black')
             ),
             hovermode='x unified'
         )
@@ -1124,17 +1124,17 @@ class SVIVisualizer:
             title=dict(
                 text=f'<b>Aggregated Implied Probability Density Function</b><br><sub>All Expirations: {all_expirations[0]} to {all_expirations[-1]} days | Current Price: ${current_price:,.2f}</sub>',
                 x=0.5,
-                font=dict(size=20, color='#2c3e50')
+                font=dict(size=20, color='black')
             ),
             xaxis=dict(
-                title=dict(text='Strike Price ($)', font=dict(size=14, color='#2c3e50')),
-                tickfont=dict(size=12),
+                title=dict(text='Strike Price ($)', font=dict(size=14, color='black')),
+                tickfont=dict(size=12, color='black'),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
             yaxis=dict(
-                title=dict(text='Aggregated Probability Density', font=dict(size=14, color='#2c3e50')),
-                tickfont=dict(size=12),
+                title=dict(text='Aggregated Probability Density', font=dict(size=14, color='black')),
+                tickfont=dict(size=12, color='black'),
                 gridcolor='rgba(128,128,128,0.2)',
                 showgrid=True
             ),
@@ -1152,7 +1152,7 @@ class SVIVisualizer:
                 bgcolor='rgba(255,255,255,0.95)',
                 bordercolor='rgba(0,0,0,0.3)',
                 borderwidth=1,
-                font=dict(size=11)
+                font=dict(size=11, color='black')
             ),
             hovermode='x unified'
         )
