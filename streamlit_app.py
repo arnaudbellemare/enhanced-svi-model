@@ -679,6 +679,8 @@ def show_visualizations():
     # Add range-specific visualization section
     st.markdown("### 📅 Range-Specific Analysis")
     
+    # First row - Original ranges
+    st.markdown("#### 🎯 Standard Time Horizons")
     col7, col8, col9 = st.columns(3)
     
     with col7:
@@ -725,6 +727,55 @@ def show_visualizations():
                     st.markdown("📁 Interactive 1-90 days range also saved as 'streamlit_range_1_90.html'")
                 except Exception as e:
                     st.error(f"❌ Error creating 1-90 days range: {e}")
+    
+    # Second row - Granular time horizon analysis
+    st.markdown("#### ⚡ Granular Time Horizon Analysis")
+    col10, col11, col12 = st.columns(3)
+    
+    with col10:
+        if st.button("⚡ Short-term (1-2 Days)", type="secondary"):
+            with st.spinner("Creating short-term analysis (1-2 days)..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(1, 2, 'streamlit_short_term.html')
+                    st.success("✅ Short-term analysis (1-2 days) created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive short-term analysis also saved as 'streamlit_short_term.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating short-term analysis: {e}")
+    
+    with col11:
+        if st.button("📈 Medium-term (15-92 Days)", type="secondary"):
+            with st.spinner("Creating medium-term analysis (15-92 days)..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(15, 92, 'streamlit_medium_term.html')
+                    st.success("✅ Medium-term analysis (15-92 days) created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive medium-term analysis also saved as 'streamlit_medium_term.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating medium-term analysis: {e}")
+    
+    with col12:
+        if st.button("🎯 Long-term (183-274 Days)", type="secondary"):
+            with st.spinner("Creating long-term analysis (183-274 days)..."):
+                try:
+                    visualizer = SVIVisualizer(st.session_state.svi_model)
+                    fig = visualizer.plot_range_probability_density(183, 274, 'streamlit_long_term.html')
+                    st.success("✅ Long-term analysis (183-274 days) created!")
+                    
+                    # Display the interactive Plotly plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.markdown("📁 Interactive long-term analysis also saved as 'streamlit_long_term.html'")
+                except Exception as e:
+                    st.error(f"❌ Error creating long-term analysis: {e}")
 
 def show_export_data():
     """Display the export data page."""
